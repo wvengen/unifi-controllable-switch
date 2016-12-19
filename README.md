@@ -141,7 +141,10 @@ then look at `log/server.log`. Hint: `docker exec -i -t unifi bash`
  - [fxkr/unifi-protocol-reverse-engineering](https://github.com/fxkr/unifi-protocol-reverse-engineering)
  - [nutefood/python-ubnt-discovery](https://github.com/nitefood/python-ubnt-discovery)
  - [job/ubbnut](https://github.com/jof/ubbnut)
+ - [Ubiquiti inform protocol](https://github.com/mcrute/ubntmfi/blob/master/inform_protocol.md)
 * UniFi controller docker image at [jacobalberti/unifi](https://hub.docker.com/r/jacobalberty/unifi/)
 * [finish06/unifi-api](https://github.com/finish06/unifi-api) - utitilies to manage a UniFi controller
+* [sol1/icinga-ubiquiti-mfi](https://github.com/sol1/icinga-ubiquiti-mfi) - parser for mFi `mca-dump`'s json output
+* [mcrute/ubntmfi](https://github.com/mcrute/ubntmfi) - web controller for mFi hardware
 * OpenWRT on [UniFi AP AC](https://wiki.openwrt.org/toh/ubiquiti/unifiac)
 
