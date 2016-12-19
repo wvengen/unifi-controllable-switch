@@ -1,11 +1,10 @@
 # Integrating a TOUGHswitch with a UniFi controller
 
-The UniFi controller provides integration for some of Ubiquiti's UniFi hardware.
-An important element that is often used with basic UniFi-based WiFi networks,
-is the TOUGHswitch, which provides switching and power-over-ethernet capability
-for the access points. This family of switches, however, do not integrate with
-the UniFi controller
-(and [it appears UniFi won't do so](https://community.ubnt.com/t5/UniFi-Routing-Switching/Tough-Switch-integration-with-Unifi-4-6/td-p/1191186)).
+The UniFi controller provides integration for Ubiquiti's UniFi hardware. An important element
+that is often used with basic UniFi-based WiFi networks, is the TOUGHswitch, which provides
+switching and power-over-ethernet capability for the access points. This family of switches,
+however, does not integrate with the UniFi controller
+(and [it appears Ubiquiti won't do so](https://community.ubnt.com/t5/UniFi-Routing-Switching/Tough-Switch-integration-with-Unifi-4-6/td-p/1191186)).
 This project is an attempt to add this capability (for layer 2).
 
 ![UniFi controller with a dummy switch](screenshot-unifi-controller.png)
