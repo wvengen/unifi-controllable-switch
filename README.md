@@ -68,7 +68,7 @@ $ docker run -t -i --name ubdev ubuntu /bin/bash
 (set password to ubnt)
 # printf '#!/bin/sh\necho "`date +%%Y%%m%%d %%H:%%M:%%S`: $0 $@\n' >>/tmp/unifi.log\n" >/usr/bin/syswrapper.sh
 # chmod a+x /usr/bin/syswrapper.sh
-# touch /tmp/unifi.log
+# touch /tmp/unifi.log && chown ubnt /tmp/unifi.log
 # tail -f /tmp/unifi.log
 ```
 
