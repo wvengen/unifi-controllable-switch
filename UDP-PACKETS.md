@@ -72,7 +72,7 @@ The second byte is the command. 06 (or 0a or ff) are used for announcement
 Then come the items: one byte type, two bytes length, payload.
 
  Type |  Format  | Description
-------+----------+--------------
+ ---- | -------- | -------------
   01  | 06 bytes | mac address
   02  | 0a bytes | mac + ip of interfaces (*)
   03  | string   | full version identifier
