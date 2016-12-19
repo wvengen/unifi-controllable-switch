@@ -4,6 +4,7 @@
 # tested with UniFi Controller 5.3.8
 #
 import os
+import json
 import zlib
 import urllib2
 from binascii import a2b_hex
@@ -11,14 +12,39 @@ from struct import pack, unpack
 from Crypto import Random
 from Crypto.Cipher import AES
 
-from unifi_config import hwaddr, ipaddr, model, version, inform_url, auth_key
+from unifi_config import hwaddr, ipaddr, inform_url, auth_key, cfgdir, model, version
 
 
 def mac2a(mac):
   return ':'.join(map(lambda i: '%02x'%i, mac))
 
+def mac2serial(mac):
+  return ''.join(map(lambda i: '%02x'%i, mac))
+
 def ip2a(ip):
   return '.'.join(map(str, ip))
+
+
+def cfg(fn, key):
+  '''read key from configuration file'''
+  fp = os.path.join(cfgdir, fn)
+  try:
+    with open(fp) as f:
+      for line in f:
+        if line.startswith(key + '='):
+          return line.split('=', 1)[1].rstrip()
+  except IOError:
+    pass
+
+def cfg_replace(fn, contents):
+  '''replace configuration file'''
+  fp = os.path.join(cfgdir, fn)
+  try:
+    os.mkdir(cfgdir)
+  except OSError:
+    pass
+  with open(fp, 'w') as f:
+    f.write(contents)
 
 
 def packet_encode(key, json):
@@ -72,7 +98,7 @@ def packet_decode(key, data):
   return payload
 
 
-def post(url, key, json):
+def inform(url, key, json):
   headers = {
     'Content-Type': 'application/x-binary',
     'User-Agent': 'AirControl Agent v1.0'
@@ -85,11 +111,81 @@ def post(url, key, json):
   return packet_decode(key, res.read())
 
 
-print post(inform_url, a2b_hex(auth_key), '''{
-  "mac": "''' + mac2a(hwaddr) + '''",
-  "ip": "''' + ip2a(ipaddr) + '''",
-  "model": "''' + model + '''",
-  "version": "''' + version + '''",
-  #"cfgversion": "1234567890123456"
-}''')
+r = inform(inform_url, a2b_hex(auth_key), json.dumps({
+  'mac': mac2a(hwaddr),
+  'ip': ip2a(ipaddr),
+  'model': model,
+  'version': version,
+  'serial': mac2serial(hwaddr),
+  'uptime': 1,
+  'cfgversion': cfg('_cfg', 'cfgversion'),
+  'if_table': [{
+    'mac': mac2a(hwaddr),
+    'ip': ip2a(ipaddr),
+    'name': 'eth0',
+    'speed': 1000,
+    'full_duplex': True
+  }],
+  'port_table': [{
+    'port_idx': 1,
+    'port_poe': True,
+    'media': 'GE',          # GE SFP SFP+
+    'name': 'port one',
+    'enable': True,
+    'autoneg': True,
+    'poe_enable': True,
+    'poe_mode': 'pasv24',
 
+    'up': True,
+    'speed': 1000,
+    'full_duplex': True,
+    'tx_packets': 22345,
+    'tx_bytes': 28394,
+    'tx_errors': 5,
+    'rx_packets': 192,
+    'rx_bytes': 1882,
+    'rx_errors': 10,
+    'stp_state': 'forwarding',
+    'stp_pathcost': 20000,
+
+    'mac_table': [
+        {'mac': '01:02:03:04:05:06', 'age': 30, 'uptime': 1002, 'type': 'usw'}
+      # optional type: usw uap
+    ]
+
+    #'is_uplink': False,
+    #'switch_vlan_enabled': False,
+    #'jumbo': True,
+    #'flowctrl_rx': False,
+    #'flowctrl_tx': False,
+  }, {
+    'port_idx': 2,
+    'port_poe': True,
+    'media': 'GE',
+    'name': 'port two',
+    'enable': True,
+    'up': True,
+    'speed': 10,
+    'full_duplex': False,
+    'tx_packets': 10,
+    'tx_bytes': 203,
+    'tx_errors': 0,
+    'rx_packets': 2,
+    'rx_bytes': 12,
+    'rx_errors': 1,
+    'stp_state': 'blocking'
+  }]
+}))
+r = json.loads(r)
+
+if r['_type'] == 'setparam':
+  # save configuration
+  othercfg = ''
+  for key, val in r.items():
+    if key.endswith('_cfg'):
+      cfg_replace(key[0:(len(key)-4)], val)
+    elif key != '_type' and key != 'server_time_in_utc':
+      othercfg += key + '=' + val + '\n'
+  cfg_replace('_cfg', othercfg)
+
+print json.dumps(r, indent=2)
