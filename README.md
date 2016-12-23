@@ -28,114 +28,67 @@ that would be: https://172.17.0.3:8443/
 Follow the installation wizard to get to the dashboard.
 
 
-## 2. Announce
+## 2. Start a local simulated switch
 
-Let's see if we can announce the presence of a switch to the controller. The protocol
-for this is explained in [jk-5/unifi-inform-protocol](https://github.com/jk-5/unifi-inform-protocol).
-Should be as basic as sending a packet.
+To test adding a switch, you can build and run the docker image provided here:
 
-To send our own packet, let's use [Python](http://www.python.org). You'll need
-[pycrypto](https://pypi.python.org/pypi/pycrypto) as well, later on.
-Run [unifi_announce.py](unifi_announce.py):
-
+```sh
+$ docker build -t unidev .
+$ docker run --name unidev -t -i unidev
 ```
-$ python2 unifi_announce.py
+
+Now the simulated switch is waiting for adoption. But the controller doesn't know
+about it yet (auto-announcment is being worked on).
+
+
+## 3. Announce
+
+For the moment, you can do it manually. To send the announcement packet,
+[Python](http://www.python.org) is required.
+
+First edit the file `devel/unifi_config.py` and modify the mac and IP address
+_of the simulated switch_.
+
+```sh
+$ docker inspect unidev | grep '"IPAddress"\|"MacAddress"' | tail -n 2
+# "IPAddress": "172.17.0.4",
+# "MacAddress": "02:42:ac:11:00:04"
+```
+
+Then run [devel/unifi_announce.py](devel/unifi_announce.py):
+
+```sh
+$ python2 devel/unifi_announce.py
 ```
 
 When all goes well, you'll see a new device in the controller, pending adoption.
 If this didn't work, you may want to review `bcast` in [unifi_config.py](unifi_config.py).
 Make sure that your UniFi controller is covered by this broadcast address.
 
-### Model identifier
 
-Listed [here](https://community.ubnt.com/ubnt/attachments/ubnt/UniFi/194506/1/bundles.json.txt).
-We're looking for an 8-port PoE switch, the `US8P150` would be the closest match.
+## 3. Adopt & Inform
 
-
-## 3. Adopt
-
-When the controller adopts device, it will connect to the device over SSH and run the command
-`/usr/bin/syswrapper.sh`. To simulate this, we'll need to setup a new docker container running the
-SSH daemon.
-
-```
-$ docker run -t -i --name ubdev ubuntu /bin/bash
-# apt-get update
-# apt-get install net-tools openssh-server
-# echo 'KexAlgorithms diffie-hellman-group1-sha1,diffie-hellman-group-exchange-sha256' >>/etc/ssh/sshd_config
-# service ssh start
-# useradd -m ubnt
-# passwd ubnt
-(set password to ubnt)
-# printf '#!/bin/sh\necho "`date +%%Y%%m%%d %%H:%%M:%%S`: $0 $@\n' >>/tmp/unifi.log\n" >/usr/bin/syswrapper.sh
-# chmod a+x /usr/bin/syswrapper.sh
-# touch /tmp/unifi.log && chown ubnt /tmp/unifi.log
-# tail -f /tmp/unifi.log
-```
-
-Now the docker container is waiting for adoption. Press _Adopt_ in the controller, and you should
-see a line appearing in the device console with a url and a hex auth key, e.g.:
-
-```
-20001010 10:10:10: /usr/bin/syswrapper.sh set-adopt http://172.17.0.3:8080/inform 123456789abcdef0123456789abcdef0
-```
-
-Open [unifi_config.py](unifi_config.py) and set `inform_url` and `auth_key` accordingly.
-
-
-## 4. Inform (1st time)
-
-Adoption succeeds when the controller receives the first inform update. This is an http request with
-an encrypted body (explained [here](https://github.com/fxkr/unifi-protocol-reverse-engineering#inform)).
-With the `inform_url` and `auth_key` received on adoption, this call can now be made using
-[unifi_inform.py](unifi_inform.py):
-
-```
-$ python2 unifi_inform.py
-```
-
-On success, you'll see a new configuration printed to stdout, and in the controller the device will
-proceed to the _Provisioning_ state. And you'll have some files in `./cfg`.
-
-
-## 5. Provision
-
-This is done by another inform update, with the `cfgversion` field set to the value as returned from
-the previous inform call. The device in the controller will then be _Connected_.
-
-
-## 6. Inform
-
-**todo:** the inform update is supposed to be done every 30 seconds. It returns something like:
-
-```
-{ "_type" : "noop" , "interval" : 14 , "server_time_in_utc" : "1234567890123"}
-```
-
-Different `_type`s can be handled, as [documented here](https://github.com/mcrute/ubntmfi/blob/master/inform_protocol.md).
-
-You can do this in the shell:
-```
-$ while [ 1 ]; do sleep 5; python2 unifi_inform.py; done
-```
-
-You could experiment with the data structure at the bottom of [unifi_inform.py](unifi_inform.py)
-and see how the UniFi controller reacts.
+Now that the device is visible in the controller, press _Adopt_. The simulated switch
+should pick up the adoption, and report back in 30 seconds, after which its state will
+move to _Provisioning_. After another 30 seconds at max, it will become _Connected_.
 
 
 ## Integrating with real hardware
 
 _Pending._
 
-- [ ] Figure out how to gather information on a TOUGHswitch
+- [x] Figure out how to gather information on a TOUGHswitch
   * network config
   * discovered mac addresses + age
   * port for each mac address (maybe not available - what then?)
   * power over ethernet config + status
   * (`mca-status` and `mca-config` may be helpful here)
-- [ ] Rewrite in C (or something else to generate a small native binary)
-- [ ] Cross-compile for mips (Atheron AR7240)
+- [x] Rewrite in C (or something else to generate a small native binary)
+- [x] Cross-compile for mips (Atheron AR7240)
+- [ ] Let the switch announce itself
+- [ ] Figure out how to modify the switch permanently
 - [ ] Install-script
+- [ ] Add mac address table to status output
 
 
 ## UniFi controller log level
@@ -161,6 +114,7 @@ then look at `log/server.log`. Hint: `docker exec -i -t unifi bash`
  - [nutefood/python-ubnt-discovery](https://github.com/nitefood/python-ubnt-discovery)
  - [job/ubbnut](https://github.com/jof/ubbnut)
  - [Ubiquiti inform protocol](https://github.com/mcrute/ubntmfi/blob/master/inform_protocol.md)
+ - [model identifiers](https://community.ubnt.com/ubnt/attachments/ubnt/UniFi/194506/1/bundles.json.txt)
 * UniFi controller docker image at [jacobalberti/unifi](https://hub.docker.com/r/jacobalberty/unifi/)
 * [finish06/unifi-api](https://github.com/finish06/unifi-api) - utitilies to manage a UniFi controller
 * [sol1/icinga-ubiquiti-mfi](https://github.com/sol1/icinga-ubiquiti-mfi) - parser for mFi `mca-dump`'s json output

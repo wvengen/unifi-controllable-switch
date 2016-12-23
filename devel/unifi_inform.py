@@ -123,7 +123,7 @@ r = inform(inform_url, a2b_hex(auth_key), json.dumps({
     'mac': mac2a(hwaddr),
     'ip': ip2a(ipaddr),
     'name': 'eth0',
-    'speed': 1000,
+    'speed': 0,
     'full_duplex': True
   }],
   'port_table': [{

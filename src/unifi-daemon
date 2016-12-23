@@ -1,0 +1,37 @@
+#!/bin/sh
+#
+# UniFi controllable switch - daemon process
+#
+# Main UniFi process (keeps on foreground).
+# Sends inform requests on a regular basis to the controller.
+#
+
+ROOT=`dirname "$0"`
+. "$ROOT"/shinc/common.sh
+
+MIN_INTERVAL=5
+CUR_INTERVAL=30
+MAX_INTERVAL=120
+
+# returns whether inform_url and authkey are present
+can_inform() {
+  cfg_get _cfg inform_url >/dev/null &&
+    cfg_get _cfg authkey >/dev/null
+}
+
+
+while [ 1 ]; do
+
+  if can_inform; then
+    "$ROOT"/unifi-inform-status |
+      "$ROOT"/unifi-inform-send |
+      "$ROOT"/unifi-inform-process
+  fi
+
+  new_interval=`cfg_get _cfg interval`
+  [ "$new_interval" -a "$new_interval" -ge "$MIN_INTERVAL" \
+    -a "$new_interval" -le "$MAX_INTERVAL" ] && CUR_INTERVAL=$new_interval
+
+  sleep "$CUR_INTERVAL"
+
+done

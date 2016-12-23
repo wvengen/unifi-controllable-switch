@@ -1,0 +1,41 @@
+#!/bin/sh
+#
+# UniFi controllable switch - inform response handler
+#
+# Reads JSON in stdin, handles accordingly (as far as relevant and supported).
+#
+
+ROOT=`dirname "$0"`
+. "$ROOT"/shinc/common.sh
+
+INTERVAL_TMPFILE=/tmp/unifi-inform-process_interval.tmp
+
+export CFG_DIR INTERVAL_TMPFILE
+
+"$ROOT"/shinc/JSON.sh -l | awk '
+  /^\["_type"\]/ {
+    TYPE = $2
+  }
+
+  /^\["(analog|mgmt|port|system)_cfg"\]/ {
+    gsub("^\\[\"", "", $1)
+    gsub("_cfg\"\\]$", "", $1)
+    file = ENVIRON["CFG_DIR"] "/" $1
+
+    content = substr($0, length($1) + 2)
+    gsub("^\\s*\"", "", content)
+    gsub("\"\\s*$", "", content)
+    gsub("\\\\n", sprintf("\n"), content)
+
+    printf("%s", content) >file
+  }
+
+  /^\["interval"\]/ {
+    print $2 >ENVIRON["INTERVAL_TMPFILE"]
+  }
+'
+
+if [ -e "$INTERVAL_TMPFILE" ]; then
+  cfg_set _cfg interval `cat "$INTERVAL_TMPFILE"` &&
+    rm -f "$INTERVAL_TMPFILE"
+fi

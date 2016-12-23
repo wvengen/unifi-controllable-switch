@@ -1,0 +1,93 @@
+{ "status": {
+"host" : {
+	"device_id": "24:A4:3C:06:07:08",
+	"system_id": "0xe702",
+	"platform": "TOUGHSwitch",
+	"uptime": "278936",
+	"time": "2016-01-01 01:01:01",
+	"utime": "1451606461",
+	"hostname": "switch1",
+	"fwversion": "SW.ar7240.v1.3.3.29156.160523.1659",
+	"loadavg": [ 0.18, 0.07, 0.02 ],
+	"meminfo": {
+		"total": 62036,
+		"free": 50964,
+		"buffers": 340
+	},
+	"cfgcrc": "12312312"
+},
+"mgmt_port": {
+	"up": 0, "speed": 0,
+	"ipv4" : {
+		"addr" : "192.168.1.210",
+		"netmask" : "255.255.255.0",
+		"broadcast" : "192.168.1.255"
+	}
+},
+"ports": [
+	{
+		"index": 1, "status": 1, "link_status": 1, "speed": 1000, "duplex": 1,
+		"mtu": 9720, "stp": "Forwarding", "poe": 0,
+		"stats": {
+			"rx_bytes": 72801871062, "rx_packets": 55873909, "rx_errors": 0,
+			"tx_bytes": 5680833156, "tx_packets": 30075288, "tx_errors": 0
+		}
+	},
+	{
+		"index": 2, "status": 1, "link_status": 1, "speed": 1000, "duplex": 1,
+		"mtu": 9720, "stp": "Forwarding", "poe": 0,
+		"stats": {
+			"rx_bytes": 121967129, "rx_packets": 409999, "rx_errors": 0,
+			"tx_bytes": 921599474, "tx_packets": 1217008, "tx_errors": 0
+		}
+	},
+	{
+		"index": 3, "status": 0, "link_status": 0, "speed": 1000, "duplex": 0,
+		"mtu": 9720, "stp": "Blocking", "poe": 0,
+		"stats": {
+			"rx_bytes": 0, "rx_packets": 0, "rx_errors": 0,
+			"tx_bytes": 0, "tx_packets": 0, "tx_errors": 0
+		}
+	},
+	{
+		"index": 4, "status": 1, "link_status": 1, "speed": 1000, "duplex": 1,
+		"mtu": 9720, "stp": "Forwarding", "poe": 24,
+		"stats": {
+			"rx_bytes": 366665784, "rx_packets": 2706910, "rx_errors": 0,
+			"tx_bytes": 6996274112, "tx_packets": 5704203, "tx_errors": 0
+		}
+	},
+	{
+		"index": 5, "status": 1, "link_status": 0, "speed": 1000, "duplex": 0,
+		"mtu": 9720, "stp": "Blocking", "poe": 24,
+		"stats": {
+			"rx_bytes": 36947, "rx_packets": 288, "rx_errors": 0,
+			"tx_bytes": 592911, "tx_packets": 3947, "tx_errors": 0
+		}
+	},
+	{
+		"index": 6, "status": 1, "link_status": 1, "speed": 1000, "duplex": 1,
+		"mtu": 9720, "stp": "Forwarding", "poe": 48,
+		"stats": {
+			"rx_bytes": 264643167, "rx_packets": 498591, "rx_errors": 0,
+			"tx_bytes": 315813889, "tx_packets": 962051, "tx_errors": 0
+		}
+	},
+	{
+		"index": 7, "status": 0, "link_status": 0, "speed": 1000, "duplex": 0,
+		"mtu": 9720, "stp": "Blocking", "poe": 0,
+		"stats": {
+			"rx_bytes": 0, "rx_packets": 0, "rx_errors": 0,
+			"tx_bytes": 0, "tx_packets": 0, "tx_errors": 0
+		}
+	},
+	{
+		"index": 8, "status": 1, "link_status": 1, "speed": 100, "duplex": 1,
+		"mtu": 9720, "stp": "Forwarding", "poe": 0,
+		"stats": {
+			"rx_bytes": 5385371683, "rx_packets": 27248339, "rx_errors": 5,
+			"tx_bytes": 64638433943, "tx_packets": 50167546, "tx_errors": 0
+		}
+	}
+]
+}}

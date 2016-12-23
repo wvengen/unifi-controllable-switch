@@ -1,0 +1,174 @@
+#!/bin/sh
+#
+# UniFi controllable switch - TOUGHswitch status
+#
+# This script is meant to be run on a TOUGHswitch. The current status and
+# configuration is gathered and output as JSON in a format that the UniFi
+# controller can understand.
+#
+
+ROOT=`dirname "$0"`
+. "$ROOT"/shinc/common.sh
+
+if [ -z "$DEVEL" ]; then
+  toughswitch_status() {
+    /usr/bin/mca-status
+  }
+  toughswitch_config() {
+    cat /tmp/system.cfg
+  }
+else
+  toughswitch_status() {
+    cat "$ROOT"/../samples/mca-status
+  }
+  toughswitch_config() {
+    cat "$ROOT"/../samples/mca-config
+  }
+fi
+
+# get config file version from last inform stored in config
+CFGVERSION=`cfg_get mgmt cfgversion`
+MODEL=`get_model_id`
+export CFGVERSION MODEL
+
+(
+  # the status JSON converted to single lines
+  toughswitch_status | "$ROOT"/shinc/JSON.sh -l
+  # and port names from the system configuration
+  toughswitch_config | grep '^switch\.port\.[0-9]\+\.name='
+) | awk '
+  # generate UniFi inform JSON
+  # do make sure to support plain old awk (gawk -c)
+
+  BEGIN {
+    print "{"
+    p("model", "\"" ENVIRON["MODEL"] "\"")
+    p("cfgversion", "\"" ENVIRON["CFGVERSION"] "\"")
+  }
+
+  function alength(a) {
+    count = 0
+    for (i in a) ++count
+    return count
+  }
+
+  function _p(key, val, sep) {
+    return sprintf("\"%s\": %s%s", key, val, sep)
+  }
+  function p(key, val) {
+    print _p(key, val, ",")
+  }
+
+
+  ### general
+
+  /^\["status","host","device_id"\]/ {
+    MAC_ADDR = $2;
+    gsub(":", "", $2);
+    SERIAL = $2;
+  }
+  /^\["status","host","hostname"\]/ {
+    p("hostname", $2);
+  }
+  /^\["status","host","fwversion"\]/ {
+    gsub("^.*\\.v", "", $2)
+    gsub("\\.[0-9][0-9[0-9].*\\..*$", "", $2)
+    # prefixing with "v" stops the UniFi controller from complaining
+    # about an outdated version, while we can still list the real one
+    p("version", "\"v" $2 "\"" )
+  }
+  /^\["status","host","uptime"\]/ {
+    p("uptime", $2);
+  }
+  /^\["status","host","utime"\]/ {
+    p("time", $2);
+  }
+
+
+  ### interfaces
+
+  /^\["status","mgmt_port","ipv4","addr"\]/ {
+    IP_ADDR = $2;
+  }
+  /^\["status","mgmt_port","speed"\]/ {
+    IFACE["speed"] = $2;
+  }
+  /^\["status","mgmt_port","ipv4","netmask"\]/ {
+    IFACE["netmask"] = $2;
+  }
+  /^\["status","mgmt_port","ipv4","broadcast"\]/ {
+    IFACE["broadcast"] = $2;
+  }
+
+
+  ### ports
+
+  function sp(port, key, val) {
+    PORTS[port] = PORTS[port] _p(key, val, ",")
+  }
+  function port(path) {
+    gsub("[^0-9]", "", path)
+    return path
+  }
+
+  /^\["status","ports",([0-9]+),"index"\]/ {
+    sp(port($1), "port_idx", $2)
+  }
+  /^\["status","ports",([0-9]+),"status"\]/ {
+    sp(port($1), "enable", $2 > 0 ? "true" : "false")
+  }
+  /^\["status","ports",([0-9]+),"link_status"\]/ {
+    sp(port($1), "up", $2 > 0 ? "true" : "false")
+  }
+  /^\["status","ports",([0-9]+),"speed"\]/ {
+    sp(port($1), "speed", $2)
+  }
+  /^\["status","ports",([0-9]+),"duplex"\]/ {
+    sp(port($1), "full_duplex", $2 > 0 ? "true" : "false")
+  }
+  /^\["status","ports",([0-9]+),"poe"\]/ {
+    sp(port($1), "poe_enable", $2 > 0 ? "true" : "false")
+    sp(port($1), "poe_mode", "\"" ($2 == 24 ? "pasv24" : $2 == 48 ? "pasv48" : "off") "\"")
+  }
+  /^\["status","ports",([0-9]+),"mtu"\]/ {
+    sp(port($1), "mtu", $2)
+  }
+  /^\["status","ports",([0-9]+),"stp"\]/ {
+    sp(port($1), "stp_state", tolower($2))
+  }
+  /^\["status","ports",([0-9]+),"stats","(tx|rx)_(packets|bytes|errors)"\]/ {
+    portidx = port($1)
+    gsub("^.*stats\",\"", "", $1)
+    gsub("\"]", "", $1)
+    sp(portidx, $1, $2)
+  }
+
+  # name comes from config file, need to map port index to array index
+  /^switch\.port\.([0-9]+)\.name=/ {
+    portidx = port($1) - 1
+    gsub("^.*=", "")
+    sp(portidx, "name", "\"" $0 "\"")
+  }
+
+
+  ### finish with data that needed to be gathered first
+
+  END {
+    p("mac", MAC_ADDR);
+    p("ip", IP_ADDR);
+    p("serial", SERIAL);
+    print "\"if_table\": [{"
+      p("mac", MAC_ADDR)
+      p("ip", IP_ADDR)
+      for (k in IFACE) p(k, IFACE[k])
+      p("full_duplex", "true")
+      printf _p("name", "\"eth0\"", "\n")
+    print "}],"
+    print "\"port_table\": ["
+      nports = alength(PORTS)
+      for (i in PORTS) {
+        print "{" substr(PORTS[i], 1, length(PORTS[i])-1) "}" (i < (nports-1) ? "," : "")
+      }
+    print "]}"
+  }
+'

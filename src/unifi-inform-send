@@ -1,0 +1,28 @@
+#!/bin/sh
+#
+# UniFi controllable switch - inform request utility
+#
+# Sends JSON on stdin to the inform url, returns response on stdout.
+#
+
+ROOT=`dirname "$0"`
+. "$ROOT"/shinc/common.sh
+
+if [ "$1" = "-h" ]; then
+  echo "Usage: $0 [<inform_url> [<key> [<mac>]]]" 1>&2
+  exit 0
+fi
+
+url="$1"
+[ -z "$url" ] && url=`cfg_get _cfg inform_url`
+if [ -z "$url" ]; then echo "url missing"; exit 1; fi
+
+key="$2"
+[ -z "$key" ] && key=`cfg_get _cfg authkey`
+if [ -z "$key" ]; then echo "key missing"; exit 1; fi
+
+mac="$3"
+[ -z "$mac" ] && mac=`get_mac`
+if [ -z "$mac" ]; then echo "mac missing"; exit 1; fi
+
+inform_request "$url" "$key" "$mac"

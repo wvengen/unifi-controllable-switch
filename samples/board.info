@@ -1,0 +1,13 @@
+board.sysid=0xe702
+board.cpurevision=0x00001101
+board.name=TOUGHSwitch
+board.shortname=TSW
+board.subtype=PoE PRO
+board.netmodes=1;
+board.hwaddr=24A43C060708
+board.reboot=30
+board.upgrade=150
+board.phycount=2
+board.phy.1.maxmtu=9192
+board.phy.2.maxmtu=2024
+board.portnumber=8
