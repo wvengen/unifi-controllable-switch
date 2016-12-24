@@ -1,0 +1,60 @@
+#!/bin/sh
+#
+# UniFi controllable switch - announcement packet
+#
+
+ROOT=`dirname "$0"`
+. "$ROOT"/shinc/common.sh
+
+MODEL=`get_model_id`
+VERSION="(unknown)"     # @todo return real version
+HOSTNAME=`hostname`
+
+# put all in temporary file and cat it all at once later to avoid buffering
+TMP=`mktemp -t unifi-announce-data.XXXXXXXXXX`
+
+xxdd() {
+  while [ "$1" ]; do
+    printf `printf '\\%03o' "$1"`
+    shift
+  done
+}
+xxdh() {
+  while [ "$1" ]; do
+    printf `printf '\\%03o' $(( 0x$1 ))`
+    shift
+  done
+}
+xstr() {
+  len=${#2}
+  xxdh $1
+  xxdd $(( $len >> 8 )) $(( $len & 0xff ))
+  printf "$2"
+}
+
+(
+  xxdh 02      # version
+  xxdh 06      # announcement packet
+
+  # data length
+  len=$(( 54 + ${#HOSTNAME} + ${#MODEL} + ${#VERSION} ))
+  xxdd $(( $len >> 8 )) $(( $len & 0xff ))
+  # mac and IP address
+  xxdh 02  00 0a
+    xxdh `get_mac | sed 's/:/ /g'`
+    xxdd `ifconfig | sed 's/^.*\binet \(addr:\)\?\([0-9.]\+\) .*$/\2/p;d' | head -n 1 | sed 's/\./ /g'`
+  # mac
+  xxdh 01  00 06; 
+    xxdh `get_mac | sed 's/:/ /g'`
+  # uptime (@todo use proper number here - or omit entirely if possible)
+  xxdh 0a  00 04  00 00 00 01
+  # hostname, firmware version and model
+  xstr 0b "$HOSTNAME"
+  xstr 16 "$VERSION"
+  xstr 15 "$MODEL"
+  # serial
+  xxdh 13  00 06
+    xxdh `get_mac | sed 's/:/ /g'`
+  xxdh 12 00 04  00 00 00 01 # announcement number (always one for now)
+) >"$TMP" && cat "$TMP"
+rm -f "$TMP"
