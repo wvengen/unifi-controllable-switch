@@ -59,7 +59,7 @@ get_model_id() {
 inform_request() {
   url="$1"
   key="$2"
-  mac=`echo $3 | sed 's/://g'`
+  mac=`echo "$3" | sed 's/://g'`
 
   TMP=`mktemp -t unifi-inform-send.XXXXXXXXXX`
 
