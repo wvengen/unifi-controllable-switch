@@ -38,7 +38,7 @@ cfg_set() {
 
 # return first mac address found in system
 find_system_mac() {
-  ifconfig | sed 's/^.*\(ether\|HWaddr\) \([0-9a-f:]\+\).*$/\2/p;d' | head -n 1
+  ifconfig | sed 's/^.*\(ether\|HWaddr\) \([0-9a-fA-F:]\+\).*$/\2/p;d' | head -n 1
 }
 
 # return mac address from configuration or system
@@ -56,20 +56,32 @@ get_model_id() {
 }
 
 # perform an inform request
+# cannot use wget because busybox misses --post-file
 inform_request() {
   url="$1"
   key="$2"
   mac=`echo "$3" | sed 's/://g'`
 
-  TMP=`mktemp -t unifi-inform-send.XXXXXXXXXX`
+  hostport=`echo "$url" | sed 's/^\w\+:\/\///;s/\/.*$//'`
+  host=`echo "$hostport" | sed 's/:.*$//'`
+  port=`echo "$hostport" | sed 's/^.*://'`
+  [ -z "$port" ] && port=80
 
+  TMP=`mktemp -t unifi-inform-send.XXXXXXXXXX`
   "$ROOT"/unifi-inform-data enc "$key" "$mac" >"$TMP"
-  wget -q -O- \
-       -U 'unifi-inform-send' \
-       --header='Accept: application/json' \
-       --header='Content-Type: application/x-binary' \
-       --post-file="$TMP" "$url" | \
+
+  (
+    echo "POST $url HTTP/1.0\r"
+    echo "Host: $hostport\r"
+    echo "Accept: application/x-binary\r"
+    echo "Content-Type: application/x-binary\r"
+    echo "Content-Length: `wc -c "$TMP" | awk '{print $1}'`\r"
+    echo "\r"
+    cat "$TMP"
+  ) | nc "$host" "$port" | (
+    while IFS= read -r line; do [ ${#line} -eq 1 ] && break; done
     "$ROOT"/unifi-inform-data dec "$key"
+  )
 
   rm -f "$TMP"
 }
