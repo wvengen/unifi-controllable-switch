@@ -44,6 +44,7 @@ export CFGVERSION MODEL
     print "{"
     p("model", "\"" ENVIRON["MODEL"] "\"")
     p("cfgversion", "\"" ENVIRON["CFGVERSION"] "\"")
+    UPLINK=0 # uplink port index
   }
 
   function alength(a) {
@@ -90,9 +91,9 @@ export CFGVERSION MODEL
   /^\["status","mgmt_port","ipv4","addr"\]/ {
     IP_ADDR = $2;
   }
-  /^\["status","mgmt_port","speed"\]/ {
-    IFACE["speed"] = $2;
-  }
+  #/^\["status","mgmt_port","speed"\]/ {
+  #  IFACE["speed"] = $2;
+  #}
   /^\["status","mgmt_port","ipv4","netmask"\]/ {
     IFACE["netmask"] = $2;
   }
@@ -121,10 +122,15 @@ export CFGVERSION MODEL
     sp(port($1), "up", $2 > 0 ? "true" : "false")
   }
   /^\["status","ports",([0-9]+),"speed"\]/ {
-    sp(port($1), "speed", $2)
+    portidx = port($1)
+    sp(portidx, "speed", $2)
+    if (portidx == UPLINK) { IFACE["speed"] = $2 }
   }
   /^\["status","ports",([0-9]+),"duplex"\]/ {
-    sp(port($1), "full_duplex", $2 > 0 ? "true" : "false")
+    portidx = port($1)
+    value = $2 > 0 ? "true" : "false"
+    sp(portidx, "full_duplex", value)
+    if (portidx == UPLINK) { IFACE["full_duplex"] = value }
   }
   /^\["status","ports",([0-9]+),"poe"\]/ {
     sp(port($1), "poe_enable", $2 > 0 ? "true" : "false")
@@ -141,6 +147,7 @@ export CFGVERSION MODEL
     gsub("^.*stats\",\"", "", $1)
     gsub("\"]", "", $1)
     sp(portidx, $1, $2)
+    if (portidx == UPLINK) { IFACE[$1] = $2 }
   }
 
   # name comes from config file, need to map port index to array index
@@ -161,7 +168,6 @@ export CFGVERSION MODEL
       p("mac", MAC_ADDR)
       p("ip", IP_ADDR)
       for (k in IFACE) p(k, IFACE[k])
-      p("full_duplex", "true")
       printf _p("name", "\"eth0\"", "\n")
     print "}],"
     print "\"port_table\": ["
