@@ -94,7 +94,7 @@ export CFGVERSION MODEL
     STATS["loadavg_15"] = $2
   }
   /^\["status","host","meminfo","total"\]/ {
-    STATS["mem_total"] = $2
+    STATS["mem_used"] = $2
   }
   /^\["status","host","meminfo","free"\]/ {
     STATS["mem_free"] = $2
@@ -183,7 +183,6 @@ export CFGVERSION MODEL
     p("ip", IP_ADDR);
     p("serial", SERIAL);
 
-    STATS["mem_used"] = STATS["mem_total"] - STATS["mem_free"] - STATS["mem_buffer"]
     print "\"sys_stats\": {"
     for (k in STATS) p(k, STATS[k])
     print "}],"
