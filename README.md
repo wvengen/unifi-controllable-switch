@@ -33,6 +33,7 @@ Follow the installation wizard to get to the dashboard.
 To test adding a switch, you can build and run the docker image provided here:
 
 ```sh
+$ make -C src
 $ docker build -t unidev .
 $ docker run --name unidev -t -i unidev
 ```

@@ -3,7 +3,8 @@
 CC = gcc
 #CC = mips-linux-gnu-gcc
 
-CFLAGS   = -DCBC=1 -std=c99 -Os # -Wall
+CFLAGS   = -DCBC=1 -std=c99 -Os
+CFLAGS  += -Wno-unused-result # @todo -Wall instead
 # some size optimizations
 CFLAGS  += -ffunction-sections -fdata-sections -Wl,--gc-sections
 CFLAGS  += -fno-unwind-tables -fno-asynchronous-unwind-tables
