@@ -44,7 +44,7 @@ export CFGVERSION MODEL
     print "{"
     p("model", "\"" ENVIRON["MODEL"] "\"")
     p("cfgversion", "\"" ENVIRON["CFGVERSION"] "\"")
-    UPLINK=0 # uplink port index
+    UPLINK=1 # uplink port index
   }
 
   function alength(a) {
@@ -64,12 +64,12 @@ export CFGVERSION MODEL
   ### general
 
   /^\["status","host","device_id"\]/ {
-    MAC_ADDR = $2;
-    gsub(":", "", $2);
-    SERIAL = $2;
+    MAC_ADDR = $2
+    gsub(":", "", $2)
+    SERIAL = $2
   }
   /^\["status","host","hostname"\]/ {
-    p("hostname", $2);
+    p("hostname", $2)
   }
   /^\["status","host","fwversion"\]/ {
     gsub("^.*\\.v", "", $2)
@@ -79,10 +79,10 @@ export CFGVERSION MODEL
     p("version", "\"v" $2 "\"" )
   }
   /^\["status","host","uptime"\]/ {
-    p("uptime", $2);
+    p("uptime", $2)
   }
   /^\["status","host","utime"\]/ {
-    p("time", $2);
+    p("time", $2)
   }
   /^\["status","host","loadavg".0\]/ {
     STATS["loadavg_1"] = $2
@@ -107,16 +107,16 @@ export CFGVERSION MODEL
   ### interfaces
 
   /^\["status","mgmt_port","ipv4","addr"\]/ {
-    IP_ADDR = $2;
+    IP_ADDR = $2
   }
   #/^\["status","mgmt_port","speed"\]/ {
-  #  IFACE["speed"] = $2;
+  #  IFACE["speed"] = $2
   #}
   /^\["status","mgmt_port","ipv4","netmask"\]/ {
-    IFACE["netmask"] = $2;
+    IFACE["netmask"] = $2
   }
   /^\["status","mgmt_port","ipv4","broadcast"\]/ {
-    IFACE["broadcast"] = $2;
+    IFACE["broadcast"] = $2
   }
 
 
@@ -132,6 +132,7 @@ export CFGVERSION MODEL
 
   /^\["status","ports",([0-9]+),"index"\]/ {
     sp(port($1), "port_idx", $2)
+    sp(port($1), "port_poe", "true")
   }
   /^\["status","ports",([0-9]+),"status"\]/ {
     sp(port($1), "enable", $2 > 0 ? "true" : "false")
@@ -142,17 +143,25 @@ export CFGVERSION MODEL
   /^\["status","ports",([0-9]+),"speed"\]/ {
     portidx = port($1)
     sp(portidx, "speed", $2)
-    if (portidx == UPLINK) { IFACE["speed"] = $2 }
+    if (portidx == UPLINK-1) { IFACE["speed"] = $2 }
   }
   /^\["status","ports",([0-9]+),"duplex"\]/ {
     portidx = port($1)
     value = $2 > 0 ? "true" : "false"
     sp(portidx, "full_duplex", value)
-    if (portidx == UPLINK) { IFACE["full_duplex"] = value }
+    if (portidx == UPLINK-1) { IFACE["full_duplex"] = value }
   }
   /^\["status","ports",([0-9]+),"poe"\]/ {
     sp(port($1), "poe_enable", $2 > 0 ? "true" : "false")
-    sp(port($1), "poe_mode", "\"" ($2 == 24 ? "pasv24" : $2 == 48 ? "pasv48" : "off") "\"")
+    if ($2 == 24) {
+      sp(port($1), "poe_mode", "\"pasv24\"")
+    } else if ($2 == 48) {
+      # controller does not recognize "pasv48", use "auto" instead
+      sp(port($1), "poe_mode", "\"auto\"")
+      sp(port($1), "poe_voltage", "48")
+    } else {
+      sp(port($1), "poe_mode", "\"off\"")
+    }
   }
   /^\["status","ports",([0-9]+),"mtu"\]/ {
     sp(port($1), "mtu", $2)
@@ -165,7 +174,7 @@ export CFGVERSION MODEL
     gsub("^.*stats\",\"", "", $1)
     gsub("\"]", "", $1)
     sp(portidx, $1, $2)
-    if (portidx == UPLINK) { IFACE[$1] = $2 }
+    if (portidx == UPLINK-1) { IFACE[$1] = $2 }
   }
 
   # name comes from config file, need to map port index to array index
@@ -179,9 +188,9 @@ export CFGVERSION MODEL
   ### finish with data that needed to be gathered first
 
   END {
-    p("mac", MAC_ADDR);
-    p("ip", IP_ADDR);
-    p("serial", SERIAL);
+    p("mac", MAC_ADDR)
+    p("ip", IP_ADDR)
+    p("serial", SERIAL)
 
     STATS["mem_total"] = STATS["mem_user"] + STATS["mem_free"] + STATS["mem_buffer"]
     print "\"sys_stats\": {"
@@ -191,6 +200,7 @@ export CFGVERSION MODEL
     print "\"if_table\": [{"
       p("mac", MAC_ADDR)
       p("ip", IP_ADDR)
+      p("port_idx", UPLINK)
       for (k in IFACE) p(k, IFACE[k])
       printf _p("name", "\"eth0\"", "\n")
     print "}],"
