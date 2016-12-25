@@ -8,7 +8,7 @@ ROOT=`dirname "$0"`
 
 MODEL=`get_model_id`
 VERSION="(unknown)"     # @todo return real version
-HOSTNAME=`hostname`
+HOSTNAME=`hostname 2>/dev/null || sed 's/^resolv\.host\.1\.name=//p;d' </tmp/system.cfg`
 
 # put all in temporary file and cat it all at once later to avoid buffering
 TMP=`mktemp -t unifi-announce-data.XXXXXXXXXX`

@@ -14,8 +14,8 @@ CFLAGS  += -fsingle-precision-constant
 LDFLAGS  = -static
 
 TARGET  = unifi-inform-data
-FILES   = main.c aes/aes.c aes/pkcs7_padding.c
-HEADERS = aes/aes.h aes/pkcs7_padding.h
+FILES   = main.c broadcast.c aes/aes.c aes/pkcs7_padding.c
+HEADERS = broadcast.h aes/aes.h aes/pkcs7_padding.h
 
 all: strip
 

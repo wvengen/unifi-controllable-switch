@@ -56,7 +56,7 @@ get_model_id() {
 }
 
 # perform an inform request
-# cannot use wget because busybox misses --post-file
+# use netcat instead of wget, because busybox misses wget's --post-file argument
 inform_request() {
   url="$1"
   key="$2"
@@ -84,5 +84,11 @@ inform_request() {
   )
 
   rm -f "$TMP"
+}
+
+# send a broadcast packet
+# busybox's netcat does not support this, so it was added to unifi-inform-data
+broadcast() {
+  "$ROOT"/unifi-inform-data bcast
 }
 

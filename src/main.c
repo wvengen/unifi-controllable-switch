@@ -1,11 +1,9 @@
 /*
- *
- *
+ * UniFi controllable switch - inform packet and broadcast helper
  *
  * @todo use data length in header when decrypting
  * @todo error handling for malloc, realloc, open, read, write
  * @todo support compression
- *
  */
 
 #include <sys/types.h>
@@ -18,12 +16,16 @@
 #include "aes/aes.h"
 #include "aes/pkcs7_padding.h"
 
+#include "broadcast.h"
+
 #define PROGNAME "unifi-inform-data"
+#define MAX_BCAST_SIZE 1024
 
 
 int cmd_help();
 int cmd_encrypt(const uint8_t key[16], const uint8_t mac[6]);
 int cmd_decrypt(const uint8_t key[16]);
+int cmd_broadcast();
 
 int parse_hex(const char *s, uint8_t *out, uint8_t len);
 void fatal(const char *msg);
@@ -34,23 +36,27 @@ ssize_t write_dw(int fd, uint32_t i);
 int main(int argc, const char *argv[]) {
   const char *cmd;
   uint8_t key[16];
+  uint8_t mac[6];
 
-  if (argc < 3) return cmd_help(argv[0]);
+  if (argc < 2) return cmd_help(argv[0]);
 
   cmd = argv[1];
-  parse_hex(argv[2], key, sizeof(key));
 
   if (strcmp(cmd, "enc") == 0) {
     if (argc != 4) return cmd_help(argv[0]);
-    uint8_t mac[6];
     parse_hex(argv[3], mac, sizeof(mac));
+    parse_hex(argv[2], key, sizeof(key));
     return cmd_encrypt(key, mac);
   }
 
   if (strcmp(cmd, "dec") == 0) {
     if (argc != 3) return cmd_help(argv[0]);
-
+    parse_hex(argv[2], key, sizeof(key));
     return cmd_decrypt(key);
+  }
+
+  if (strcmp(cmd, "bcast") == 0) {
+    return cmd_broadcast();
   }
 
   return cmd_help(argv[0]);
@@ -59,8 +65,9 @@ int main(int argc, const char *argv[]) {
 int cmd_help() {
   const char msg[] =
     "UniFi inform packet encoder/decoder\n"
-    "Usage: " PROGNAME " dec <key>\n"
-    "       " PROGNAME " enc <key> <mac>\n";
+    "Usage: " PROGNAME " dec <key>          - decode packet data\n"
+    "       " PROGNAME " enc <key> <mac>    - encode packet data\n"
+    "       " PROGNAME " bcast              - send broadcast packet\n";
   write(2, msg, sizeof(msg));
   return 1;
 }
@@ -142,6 +149,16 @@ int cmd_decrypt(const uint8_t key[16]) {
     }
     write(1, buffer, justread);
   }
+}
+
+int cmd_broadcast() {
+  uint8_t data[MAX_BCAST_SIZE];
+  ssize_t len;
+
+  len = read(0, data, sizeof(data));
+  if (len <= 0) fatal("no data");
+
+  return broadcast(10001, data, len);
 }
 
 // output double word

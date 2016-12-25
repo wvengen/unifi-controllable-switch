@@ -23,13 +23,17 @@ can_inform() {
 while [ 1 ]; do
 
   if can_inform; then
+    # perform inform call when possible
     "$ROOT"/unifi-inform-status |
       "$ROOT"/unifi-inform-send |
       "$ROOT"/unifi-inform-process
+  else
+    # else send announcement packet
+    "$ROOT"/unifi-announce-data | broadcast
   fi
 
   new_interval=`cfg_get _cfg interval`
-  [ "$new_interval" -a "$new_interval" -ge "$MIN_INTERVAL" \
+  [ "$new_interval" ] && [ "$new_interval" -ge "$MIN_INTERVAL" \
     -a "$new_interval" -le "$MAX_INTERVAL" ] && CUR_INTERVAL="$new_interval"
 
   sleep "$CUR_INTERVAL"

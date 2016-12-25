@@ -7,7 +7,7 @@ FROM debian
 
 # we need ssh and some other packages
 # note that (older versions) of the UniFi controller only support insecure diffie-hellmap-group1-sha1
-RUN apt-get -y update && apt-get install --no-install-recommends -y openssh-server net-tools wget vim-tiny && \
+RUN apt-get -y update && apt-get install --no-install-recommends -y openssh-server net-tools wget netcat vim-tiny && \
     mkdir /var/run/sshd && \
     sed -i 's/^PermitRootLogin .*/PermitRootLogin yes/' /etc/ssh/sshd_config && \
     echo 'KexAlgorithms diffie-hellman-group1-sha1,diffie-hellman-group-exchange-sha256' >>/etc/ssh/sshd_config
@@ -19,6 +19,7 @@ RUN sed -i 's/^root:/ubnt:/' /etc/passwd /etc/shadow && \
 
 # UniFi integration
 COPY src/syswrapper.sh \
+     src/unifi-announce-data \
      src/unifi-daemon \
      src/unifi-inform-data \
      src/unifi-inform-process \

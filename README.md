@@ -37,33 +37,8 @@ $ docker build -t unidev .
 $ docker run --name unidev -t -i unidev
 ```
 
-Now the simulated switch is waiting for adoption. But the controller doesn't know
-about it yet (auto-announcment is being worked on).
-
-
-## 3. Announce
-
-For the moment, you can do it manually. To send the announcement packet,
-[Python](http://www.python.org) is required.
-
-First edit the file `devel/unifi_config.py` and modify the mac and IP address
-_of the simulated switch_.
-
-```sh
-$ docker inspect unidev | grep '"IPAddress"\|"MacAddress"' | tail -n 2
-# "IPAddress": "172.17.0.4",
-# "MacAddress": "02:42:ac:11:00:04"
-```
-
-Then run [devel/unifi_announce.py](devel/unifi_announce.py):
-
-```sh
-$ python2 devel/unifi_announce.py
-```
-
-When all goes well, you'll see a new device in the controller, pending adoption.
-If this didn't work, you may want to review `bcast` in [unifi_config.py](unifi_config.py).
-Make sure that your UniFi controller is covered by this broadcast address.
+Now the simulated switch will start sending announcement packets, and it will
+show up in the UniFi controller.
 
 
 ## 3. Adopt & Inform
@@ -85,10 +60,11 @@ _Pending._
   * (`mca-status` and `mca-config` may be helpful here)
 - [x] Rewrite in C (or something else to generate a small native binary)
 - [x] Cross-compile for mips (Atheron AR7240)
-- [ ] Let the switch announce itself
+- [x] Let the switch announce itself
+- [ ] Make tools work on a real TOUGHswitch
 - [ ] Figure out how to modify the switch permanently
 - [ ] Install-script
-- [ ] Add mac address table to status output
+- [ ] Add mac address table to status output (`/usr/www/mactable_data.cgi` or `tswconf` `fdb`)
 
 
 ## UniFi controller log level
