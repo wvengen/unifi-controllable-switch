@@ -84,6 +84,24 @@ export CFGVERSION MODEL
   /^\["status","host","utime"\]/ {
     p("time", $2);
   }
+  /^\["status","host","loadavg".0\]/ {
+    STATS["loadavg_1"] = $2
+  }
+  /^\["status","host","loadavg".1\]/ {
+    STATS["loadavg_5"] = $2
+  }
+  /^\["status","host","loadavg".2\]/ {
+    STATS["loadavg_15"] = $2
+  }
+  /^\["status","host","meminfo","total"\]/ {
+    STATS["mem_total"] = $2
+  }
+  /^\["status","host","meminfo","free"\]/ {
+    STATS["mem_free"] = $2
+  }
+  /^\["status","host","meminfo","buffers"\]/ {
+    STATS["mem_buffer"] = $2
+  }
 
 
   ### interfaces
@@ -164,12 +182,19 @@ export CFGVERSION MODEL
     p("mac", MAC_ADDR);
     p("ip", IP_ADDR);
     p("serial", SERIAL);
+
+    STATS["mem_used"] = STATS["mem_total"] - STATS["mem_free"] - STATS["mem_buffer"]
+    print "\"sys_stats\": {"
+    for (k in STATS) p(k, STATS[k])
+    print "}],"
+
     print "\"if_table\": [{"
       p("mac", MAC_ADDR)
       p("ip", IP_ADDR)
       for (k in IFACE) p(k, IFACE[k])
       printf _p("name", "\"eth0\"", "\n")
     print "}],"
+
     print "\"port_table\": ["
       nports = alength(PORTS)
       for (i in PORTS) {
