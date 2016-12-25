@@ -183,9 +183,10 @@ export CFGVERSION MODEL
     p("ip", IP_ADDR);
     p("serial", SERIAL);
 
+    STATS["mem_total"] = STATS["mem_user"] + STATS["mem_free"] + STATS["mem_buffer"]
     print "\"sys_stats\": {"
     for (k in STATS) p(k, STATS[k])
-    print "}],"
+    print "},"
 
     print "\"if_table\": [{"
       p("mac", MAC_ADDR)
