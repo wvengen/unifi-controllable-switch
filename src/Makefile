@@ -93,7 +93,6 @@ mips/$(TARGET):
 
 
 ### Install on real device
-# @todo install target (with HOST=... parameter)
 
 INSTALL_FILES = \
 	unifi-announce-data \
@@ -105,6 +104,8 @@ INSTALL_FILES = \
 	shinc/common.sh \
 	shinc/JSON.sh
 
+.PHONY: install
+
 mips/egrep:
 	@mkdir -p mips
 	wget -O $@ -c https://busybox.net/downloads/binaries/latest/busybox-mips
@@ -112,3 +113,8 @@ mips/egrep:
 
 dist.mips.tar.gz: mips/$(TARGET) $(INSTALL_FILES) mips/egrep
 	tar -c -z -f $@ --transform='s/^mips\///' mips/$(TARGET) $(INSTALL_FILES) mips/egrep
+
+install: dist.mips.tar.gz
+	@if [ -z "$(HOST)" ]; then echo "Usage: make install HOST=[user@]<switch ip>" 1>&2; exit 1; fi
+	cat dist.mips.tar.gz | ssh "$(HOST)" 'mkdir -p unifi && tar -x -z -C unifi -f -'
+	# @todo finish installation
