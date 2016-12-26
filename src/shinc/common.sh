@@ -55,6 +55,13 @@ get_model_id() {
   fi
 }
 
+# run JSON.sh
+JSONsh() {
+  "$ROOT"/shinc/JSON.sh
+}
+# workaround for https://github.com/dominictarr/JSON.sh/issues/50
+[ -x "$ROOT"/egrep ] && PATH="$ROOT:$PATH" && export PATH
+
 # perform an inform request
 # use netcat instead of wget, because busybox misses wget's --post-file argument
 inform_request() {

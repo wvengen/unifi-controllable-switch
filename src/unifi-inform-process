@@ -12,7 +12,7 @@ INTERVAL_TMPFILE=/tmp/unifi-inform-process_interval.tmp
 
 export CFG_DIR INTERVAL_TMPFILE
 
-"$ROOT"/shinc/JSON.sh -l | awk '
+JSONsh -l | awk '
   /^\["_type"\]/ {
     TYPE = $2
   }

@@ -33,7 +33,7 @@ export CFGVERSION MODEL
 
 (
   # the status JSON converted to single lines
-  toughswitch_status | "$ROOT"/shinc/JSON.sh -l
+  toughswitch_status | JSONsh -l
   # and port names from the system configuration
   toughswitch_config | grep '^switch\.port\.[0-9]\+\.name='
 ) | awk '

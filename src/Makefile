@@ -107,7 +107,8 @@ INSTALL_FILES = \
 
 mips/egrep:
 	@mkdir -p mips
-	wget -O mips/egrep -c https://busybox.net/downloads/binaries/latest/busybox-mips
+	wget -O $@ -c https://busybox.net/downloads/binaries/latest/busybox-mips
+	chmod a+x $@
 
 dist.mips.tar.gz: mips/$(TARGET) $(INSTALL_FILES) mips/egrep
 	tar -c -z -f $@ --transform='s/^mips\///' mips/$(TARGET) $(INSTALL_FILES) mips/egrep
