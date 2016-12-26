@@ -83,7 +83,7 @@ mips/qemu-down:
 	@rm -f mips/qemu-up
 
 mips/compile-$(TARGET):
-	@$(QEMU_SSH) '[ -z `which gcc` ] && echo "deb http://archive.debian.org/debian squeeze main" >/etc/apt.sources.list && apt-get update && apt-get -y install $(QEMU_PACKAGES)'
+	@$(QEMU_SSH) '[ -z `which gcc` ] && echo "deb http://archive.debian.org/debian squeeze main" >/etc/apt/sources.list && apt-get update && apt-get -y install $(QEMU_PACKAGES)'
 	@$(QEMU_SSH) 'tar xzf /dev/sdb && make CC="diet gcc"'
 	@$(QEMU_SSH) cat $(TARGET) >mips/$(TARGET)
 
