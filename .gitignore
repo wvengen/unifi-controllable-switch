@@ -1,3 +1,5 @@
 *.pyc
 /cfg
 /src/unifi-inform-data
+/src/mips
+/src/dist.*.tar.gz
