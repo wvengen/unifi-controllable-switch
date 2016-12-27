@@ -78,12 +78,12 @@ inform_request() {
   "$ROOT"/unifi-inform-data enc "$key" "$mac" >"$TMP"
 
   (
-    echo "POST $url HTTP/1.0\r"
-    echo "Host: $hostport\r"
-    echo "Accept: application/x-binary\r"
-    echo "Content-Type: application/x-binary\r"
-    echo "Content-Length: `wc -c "$TMP" | awk '{print $1}'`\r"
-    echo "\r"
+    printf "POST %s HTTP/1.0\r\n" "$url"
+    printf "Host: %s%s\r\n" "$hostport"
+    printf "Accept: application/x-binary\r\n"
+    printf "Content-Type: application/x-binary\r\n"
+    printf "Content-Length: %d\r\n" `wc -c "$TMP" | awk '{print $1}'`
+    printf "\r\n"
     cat "$TMP"
   ) | nc "$host" "$port" | (
     while IFS= read -r line; do [ ${#line} -eq 1 ] && break; done
