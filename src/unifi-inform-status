@@ -179,9 +179,10 @@ export CFGVERSION MODEL
 
   # name comes from config file, need to map port index to array index
   /^switch\.port\.([0-9]+)\.name=/ {
+    portname = substr($0, index($0, "=") + 1)
+    gsub("=.*$", "", $1)
     portidx = port($1) - 1
-    gsub("^.*=", "")
-    sp(portidx, "name", "\"" $0 "\"")
+    if (portidx in PORTS) { sp(portidx, "name", "\"" portname "\"") }
   }
 
 
