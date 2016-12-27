@@ -112,13 +112,14 @@ INSTALL_FILES = \
 	shinc/JSON.sh
 
 # latest version from https://www.ubnt.com/download/accessories/toughswitch
-FW_UNIVERS=unifi.1
+FW_UNIVERS=1
 FW_VERSION=v1.3.3
 FW_BUILDID=29156.160523.1659
 FW_FWVERSION=SW.ar7240.$(FW_VERSION).$(FW_BUILDID)
 
 FW_FILENAME=SW.$(FW_VERSION).$(FW_BUILDID).bin
-FW_TARGET=SW.$(FW_VERSION).$(FW_BUILDID)+$(FW_UNIVERS).bin
+FW_TARGET=SW.$(FW_VERSION).$(FW_BUILDID)+unifi.$(FW_UNIVERS).bin
+FW_UNIURL=https://github.com/wvengen/unifi-controllable-switch
 
 dist.mips.tar.gz: mips/$(TARGET) $(INSTALL_FILES)
 	tar -c -z -f $@ --transform='s/^mips\///' mips/$(TARGET) $(INSTALL_FILES)
@@ -139,8 +140,18 @@ $(FW_TARGET): fwsplit fwmkimage dist.mips.tar.gz mips/$(FW_FILENAME)
 	printf '#!/bin/sh\n/usr/unifi/syswrapper.sh $$@\n' >firmware/root/bin/syswrapper.sh
 	chmod a+x firmware/root/bin/syswrapper.sh
 	echo '/usr/unifi/unifi-daemon &' >>firmware/root/usr/etc/rc.d/rc.sysinit
+	# add notice to web ui
+	for t in templates/tab_status.tmpl templates/tab_device.tmpl; do \
+		cat firmware/root/usr/www/$$t | awk ' \
+				{print $$0} \
+				/echo (\$$fwversion|fw_get_version)/ { print "<span>+ <a href=\"$(FW_UNIURL)\" target=\"_blank\">UniFi v$(FW_UNIVERS)</a></span>" }' \
+				>firmware/template.tmp && \
+			mv firmware/template.tmp firmware/root/usr/www/$$t; \
+	done
+	# remove inconvenient max password length restriction
+	sed -i 's/ *maxlength="8"//g' firmware/root/usr/www/login.cgi firmware/root/usr/www/templates/tab_device.tmpl
 	# pack firmware and cleanup
 	mksquashfs firmware/root firmware/$(FW_FWVERSION).rootfs -all-root -noappend -comp lzma
-	cd firmware && ../fwmkimage -v '$(FW_FWVERSION)' -o '../$(FW_TARGET)' -i '$(FW_FWVERSION).txt'
+	cd firmware && ../fwmkimage -v '$(FW_FWVERSION)+unifi.$(FW_UNIVERS)' -o '../$(FW_TARGET)' -i '$(FW_FWVERSION).txt'
 	@rm -Rf firmware
 
