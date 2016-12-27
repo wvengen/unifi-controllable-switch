@@ -16,23 +16,30 @@ TARGET   = unifi-inform-data$(TARGET_SUFFIX)
 FILES    = main.c broadcast.c aes/aes.c aes/pkcs7_padding.c
 HEADERS  = broadcast.h aes/aes.h aes/pkcs7_padding.h
 
-.PHONY: all strip clean
+.PHONY: all clean
 
-all: strip
+all: $(TARGET)
 
 $(TARGET): $(FILES) $(HEADERS)
 	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $(FILES)
-
-strip: $(TARGET)
 	strip -S --strip-unneeded -R .note.gnu.gold-version -R .comment -R .note -R .note.gnu.build-id $(TARGET)
 
 clean:
-	rm -f $(TARGET) dist.src.tar.gz dist.mips.tar.gz
+	rm -f $(TARGET) fwsplit fwmkimage $(FW_TARGET) dist.src.tar.gz dist.mips.tar.gz
 
 distclean: clean
-	rm -f mips/$(TARGET) mips/egrep mips/vmlinux-2.6.32-5-4kc-malta \
-        mips/$(QEMU_ROOTWORK) mips/$(QEMU_ROOTBASE) mips/$(QEMU_KERNEL)
+	rm -f mips/$(TARGET) mips/vmlinux-2.6.32-5-4kc-malta \
+        mips/$(QEMU_ROOTWORK) mips/$(QEMU_ROOTBASE) mips/$(QEMU_KERNEL) \
+				mips/$(FW_FILENAME)
 	rmdir mips
+
+
+### Build utilities
+
+fwsplit: fwsplit.c fw.h
+	$(CC) -o $@ fwsplit.c -lz
+fwmkimage: fwmkimage.c fw.h
+	$(CC) -o $@ fwmkimage.c -lz
 
 
 ### Cross-compile for mips
@@ -92,7 +99,7 @@ mips/$(TARGET):
 	@chmod a+x $@
 
 
-### Install on real device
+### Firmware with UniFi integration
 
 INSTALL_FILES = \
 	unifi-announce-data \
@@ -104,17 +111,36 @@ INSTALL_FILES = \
 	shinc/common.sh \
 	shinc/JSON.sh
 
-.PHONY: install
+# latest version from https://www.ubnt.com/download/accessories/toughswitch
+FW_UNIVERS=unifi.1
+FW_VERSION=v1.3.3
+FW_BUILDID=29156.160523.1659
+FW_FWVERSION=SW.ar7240.$(FW_VERSION).$(FW_BUILDID)
 
-mips/egrep:
-	@mkdir -p mips
-	wget -O $@ -c https://busybox.net/downloads/binaries/latest/busybox-mips
-	chmod a+x $@
+FW_FILENAME=SW.$(FW_VERSION).$(FW_BUILDID).bin
+FW_TARGET=SW.$(FW_VERSION).$(FW_BUILDID)+$(FW_UNIVERS).bin
 
-dist.mips.tar.gz: mips/$(TARGET) $(INSTALL_FILES) mips/egrep
-	tar -c -z -f $@ --transform='s/^mips\///' mips/$(TARGET) $(INSTALL_FILES) mips/egrep
+dist.mips.tar.gz: mips/$(TARGET) $(INSTALL_FILES)
+	tar -c -z -f $@ --transform='s/^mips\///' mips/$(TARGET) $(INSTALL_FILES)
 
-install: dist.mips.tar.gz
-	@if [ -z "$(HOST)" ]; then echo "Usage: make install HOST=[user@]<switch ip>" 1>&2; exit 1; fi
-	cat dist.mips.tar.gz | ssh "$(HOST)" 'mkdir -p unifi && tar -x -z -C unifi -f -'
-	# @todo finish installation
+mips/$(FW_FILENAME):
+	cd mips && wget 'http://dl.ubnt.com/firmwares/TOUGHSwitch/$(FW_VERSION)/$(FW_FILENAME)'
+
+$(FW_TARGET): fwsplit fwmkimage dist.mips.tar.gz mips/$(FW_FILENAME)
+	# unpack firmware
+	@mkdir -p firmware
+	cd firmware && ../fwsplit '../mips/$(FW_FILENAME)'
+	unsquashfs -d firmware/root 'firmware/$(FW_FWVERSION).rootfs'
+	rm 'firmware/$(FW_FWVERSION).rootfs'
+	# add tools to firmware
+	mkdir -p firmware/root/usr/unifi
+	tar -x -z -C firmware/root/usr/unifi -f dist.mips.tar.gz
+	# integrate with system
+	printf '#!/bin/sh\n/usr/unifi/syswrapper.sh $$@\n' >firmware/root/bin/syswrapper.sh
+	chmod a+x firmware/root/bin/syswrapper.sh
+	echo '/usr/unifi/unifi-daemon &' >>firmware/root/usr/etc/rc.d/rc.sysinit
+	# pack firmware and cleanup
+	mksquashfs firmware/root firmware/$(FW_FWVERSION).rootfs -all-root -noappend -comp lzma
+	cd firmware && ../fwmkimage -v '$(FW_FWVERSION)' -o '../$(FW_TARGET)' -i '$(FW_FWVERSION).txt'
+	@rm -Rf firmware
+
