@@ -74,23 +74,25 @@ inform_request() {
   port=`echo "$hostport" | sed 's/^.*://'`
   [ -z "$port" ] && port=80
 
-  TMP=`mktemp -t unifi-inform-send.XXXXXXXXXX`
-  "$ROOT"/unifi-inform-data enc "$key" "$mac" >"$TMP"
+  TMP1=`mktemp -t unifi-inform-send-in.XXXXXXXXXX`
+  cat >"$TMP1" # encryption can't handle buffering
+  TMP2=`mktemp -t unifi-inform-send-enc.XXXXXXXXXX`
+  "$ROOT"/unifi-inform-data enc "$key" "$mac" <"$TMP1" >"$TMP2"
 
   (
     printf "POST %s HTTP/1.0\r\n" "$url"
     printf "Host: %s%s\r\n" "$hostport"
     printf "Accept: application/x-binary\r\n"
     printf "Content-Type: application/x-binary\r\n"
-    printf "Content-Length: %d\r\n" `wc -c "$TMP" | awk '{print $1}'`
+    printf "Content-Length: %d\r\n" `wc -c "$TMP2" | awk '{print $1}'`
     printf "\r\n"
-    cat "$TMP"
+    cat "$TMP2"
   ) | nc "$host" "$port" | (
     while IFS= read -r line; do [ ${#line} -eq 1 ] && break; done
     "$ROOT"/unifi-inform-data dec "$key"
   )
 
-  rm -f "$TMP"
+  rm -f "$TMP1" "$TMP2"
 }
 
 # send a broadcast packet
