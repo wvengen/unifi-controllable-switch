@@ -58,7 +58,7 @@ parse_options() {
 awk_egrep () {
   local pattern_string=$1
 
-  gawk '{
+  awk '{
     while ($0) {
       start=match($0, pattern);
       token=substr($0, start, RLENGTH);
@@ -73,22 +73,24 @@ tokenize () {
   local ESCAPE
   local CHAR
 
-  if echo "test string" | egrep -ao --color=never "test" >/dev/null 2>&1
-  then
-    GREP='egrep -ao --color=never'
-  else
-    GREP='egrep -ao'
-  fi
+  # use awk for egrep because https://github.com/dominictarr/JSON.sh/issues/50
 
-  if echo "test string" | egrep -o "test" >/dev/null 2>&1
-  then
-    ESCAPE='(\\[^u[:cntrl:]]|\\u[0-9a-fA-F]{4})'
-    CHAR='[^[:cntrl:]"\\]'
-  else
+  #if echo "test string" | egrep -ao --color=never "test" >/dev/null 2>&1
+  #then
+  #  GREP='egrep -ao --color=never'
+  #else
+  #  GREP='egrep -ao'
+  #fi
+
+  #if echo "test string" | egrep -o "test" >/dev/null 2>&1
+  #then
+  #  ESCAPE='(\\[^u[:cntrl:]]|\\u[0-9a-fA-F]{4})'
+  #  CHAR='[^[:cntrl:]"\\]'
+  #else
     GREP=awk_egrep
     ESCAPE='(\\\\[^u[:cntrl:]]|\\u[0-9a-fA-F]{4})'
     CHAR='[^[:cntrl:]"\\\\]'
-  fi
+  #fi
 
   local STRING="\"$CHAR*($ESCAPE$CHAR*)*\""
   local NUMBER='-?(0|[1-9][0-9]*)([.][0-9]*)?([eE][+-]?[0-9]*)?'
