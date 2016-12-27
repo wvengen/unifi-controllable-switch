@@ -29,7 +29,7 @@ cfg_set() {
   value="$3"
 
   mkdir -p "$CFG_DIR"
-  if grep -q "^$key=" "$file"; then
+  if grep -q "^$key=" "$file" 2>/dev/null; then
      sed -i "s/^\($key=\).*$/\1$value/" "$file"
   else
      echo "$key=$value" >>"$file"
