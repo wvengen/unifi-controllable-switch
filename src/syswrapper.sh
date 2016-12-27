@@ -14,7 +14,13 @@ case "$1" in
 set-adopt)
   [ "$2" ] && cfg_set _cfg inform_url  "$2"
   [ "$3" ] && cfg_set _cfg authkey "$3"
-  inform_request "$2" "$3" `get_mac`
+  # then call inform twice (adoption and association)
+  "$ROOT"/unifi-inform-status |
+    "$ROOT"/unifi-inform-send "$2" "$3" |
+    "$ROOT"/unifi-inform-process
+  "$ROOT"/unifi-inform-status |
+    "$ROOT"/unifi-inform-send "$2" "$3" |
+    "$ROOT"/unifi-inform-process
   ;;
 *)
   echo "Usage: $0 set-adopt <inform_url> <authkey>"
