@@ -1,5 +1,9 @@
 *.pyc
 /cfg
 /src/unifi-inform-data
+/src/fwsplit
+/src/fwmkimage
 /src/mips
+/src/build/
+/src/firmware/
 /src/dist.*.tar.gz

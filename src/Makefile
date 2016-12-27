@@ -16,22 +16,28 @@ TARGET   = unifi-inform-data$(TARGET_SUFFIX)
 FILES    = main.c broadcast.c aes/aes.c aes/pkcs7_padding.c
 HEADERS  = broadcast.h aes/aes.h aes/pkcs7_padding.h
 
-.PHONY: all clean
+.PHONY: all clean firmware
 
 all: $(TARGET)
 
-$(TARGET): $(FILES) $(HEADERS)
-	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $(FILES)
-	strip -S --strip-unneeded -R .note.gnu.gold-version -R .comment -R .note -R .note.gnu.build-id $(TARGET)
 
 clean:
-	rm -f $(TARGET) fwsplit fwmkimage $(FW_TARGET) dist.src.tar.gz dist.mips.tar.gz
+	rm -f $(TARGET) fwsplit fwmkimage $(FW_TARGET) \
+		    dist.src.tar.gz dist.mips.tar.gz dist.build.tar.gz
+	if [ -d build ]; then rm -f build/* && rmdir build; fi
 
 distclean: clean
 	rm -f mips/$(TARGET) mips/vmlinux-2.6.32-5-4kc-malta \
         mips/$(QEMU_ROOTWORK) mips/$(QEMU_ROOTBASE) mips/$(QEMU_KERNEL) \
 				mips/$(FW_FILENAME)
-	rmdir mips
+	if [ -d mips ]; then rmdir mips; fi
+
+
+### unifi-inform-data helper
+
+$(TARGET): $(FILES) $(HEADERS)
+	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $(FILES)
+	strip -S --strip-unneeded -R .note.gnu.gold-version -R .comment -R .note -R .note.gnu.build-id $(TARGET)
 
 
 ### Build utilities
@@ -112,19 +118,24 @@ INSTALL_FILES = \
 	shinc/JSON.sh
 
 # latest version from https://www.ubnt.com/download/accessories/toughswitch
-FW_UNIVERS=1
 FW_VERSION=v1.3.3
 FW_BUILDID=29156.160523.1659
 FW_FWVERSION=SW.ar7240.$(FW_VERSION).$(FW_BUILDID)
+# unifi adaptation version (this package)
+FW_UNIVERS=1
 
 FW_FILENAME=SW.$(FW_VERSION).$(FW_BUILDID).bin
 FW_TARGET=SW.$(FW_VERSION).$(FW_BUILDID)+unifi.$(FW_UNIVERS).bin
 FW_UNIURL=https://github.com/wvengen/unifi-controllable-switch
 
+
+firmware: $(FW_TARGET)
+
 dist.mips.tar.gz: mips/$(TARGET) $(INSTALL_FILES)
 	tar -c -z -f $@ --transform='s/^mips\///' mips/$(TARGET) $(INSTALL_FILES)
 
 mips/$(FW_FILENAME):
+	@mkdir -p mips
 	cd mips && wget 'http://dl.ubnt.com/firmwares/TOUGHSwitch/$(FW_VERSION)/$(FW_FILENAME)'
 
 $(FW_TARGET): fwsplit fwmkimage dist.mips.tar.gz mips/$(FW_FILENAME)
@@ -154,4 +165,21 @@ $(FW_TARGET): fwsplit fwmkimage dist.mips.tar.gz mips/$(FW_FILENAME)
 	mksquashfs firmware/root firmware/$(FW_FWVERSION).rootfs -all-root -noappend -comp lzma
 	cd firmware && ../fwmkimage -v '$(FW_FWVERSION)+unifi.$(FW_UNIVERS)' -o '../$(FW_TARGET)' -i '$(FW_FWVERSION).txt'
 	@rm -Rf firmware
+
+
+### Distribution
+
+DIST_BUILD_FILES = \
+	Makefile \
+	dist.mips.tar.gz \
+  fwsplit.c fwmkimage.c fw.h
+
+dist.build.tar.gz: $(DIST_BUILD_FILES)
+	@mkdir -p build
+	cp -p $(DIST_BUILD_FILES) build/
+	sed -i 's/^\(dist.mips.tar.gz:\).*$$/\1/' build/Makefile  # don't try to build mips binary
+	sed -i 's/^all:.*$$/all: firmware/' build/Makefile        # default target
+	cat DIST_BUILD.md | sed 's/@@FW_VERSION@@/$(FW_VERSION)/g;s/@@FW_UNIVERS@@/$(FW_UNIVERS)/g' >build/README.md
+	tar -c -z -f $@ build/
+	rm -Rf build
 

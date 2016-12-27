@@ -1,85 +1,51 @@
 # Integrating a TOUGHswitch with a UniFi controller
 
 The UniFi controller provides integration for Ubiquiti's UniFi hardware. An important element
-that is often used with basic UniFi-based WiFi networks, is the TOUGHswitch, which provides
+that is often used with basic UniFi-based WiFi networks, is the
+[TOUGHswitch](https://www.ubnt.com/accessories/toughswitch/), which provides
 switching and power-over-ethernet capability for the access points. This family of switches,
 however, does not integrate with the UniFi controller
 (and [it appears Ubiquiti won't do so](https://community.ubnt.com/t5/UniFi-Routing-Switching/Tough-Switch-integration-with-Unifi-4-6/td-p/1191186)).
-This project is an attempt to add this capability (for layer 2).
+This project adds basic read-only support for the UniFi controller to TOUGHswitch firmware.
 
-![UniFi controller with a dummy switch](screenshot-unifi-controller.png)
+**Important note:** this is an adaptation of the official TOUGHswitch firmware, independent of
+Ubiquiti. It has not been tested thoroughly, and as such it might cause issues, e.g. performance
+might suffer. Bricking is very unlikely, but not entirely impossible.
 
-
-## 1. Start a local UniFi controller
-
-For testing, it's useful to have a UniFi controller running testing. This is done
-most easily using the [docker image](https://hub.docker.com/r/jacobalberty/unifi/):
+![UniFi controller with a TOUGHswitch](screenshot-unifi-controller.png)
 
 
-```sh
-$ docker pull jacobalberti/unifi
-$ docker run -d --name unifi jacobalberti/unifi
-$ docker inspect unifi | grep IPAddress | tail -n 1
-# "IPAddress": "172.17.0.3"
-```
+## Build
 
-Then visit the IP-address at port 8443 with a browser using HTTPS, in this case
-that would be: https://172.17.0.3:8443/
-Follow the installation wizard to get to the dashboard.
-
-
-## 2. Start a local simulated switch
-
-To test adding a switch, you can build and run the docker image provided here:
+To build an adapted version of the [TOUGHswitch firmware](https://www.ubnt.com/download/accessories/toughswitch),
+you need a number of tools. On [Debian](http://www.debian.org/) or [Ubuntu](https://www.ubuntu.com/desktop)
+Linux, installing the following will do. Run:
 
 ```sh
-$ make -C src
-$ docker build -t unidev .
-$ docker run --name unidev -t -i unidev
+sudo apt-get install make gcc libc6-dev zlib1g-dev wget squashfs-tools
 ```
 
-Now the simulated switch will start sending announcement packets, and it will
-show up in the UniFi controller.
+Then download the latest `dist.build.tar.gz` from
+the [releases](https://github.com/wvengen/unifi-controllable-switch/releases) page
+and build it:
 
-
-## 3. Adopt & Inform
-
-Now that the device is visible in the controller, press _Adopt_. The simulated switch
-should pick up the adoption, and report back in 30 seconds, after which its state will
-move to _Provisioning_. After another 30 seconds at max, it will become _Connected_.
-
-
-## Integrating with real hardware
-
-_Pending._
-
-- [x] Figure out how to gather information on a TOUGHswitch
-  * network config
-  * discovered mac addresses + age
-  * port for each mac address (maybe not available - what then?)
-  * power over ethernet config + status
-  * (`mca-status` and `mca-config` may be helpful here)
-- [x] Rewrite in C (or something else to generate a small native binary)
-- [x] Cross-compile for mips (Atheron AR7240)
-- [x] Let the switch announce itself
-- [ ] Make tools work on a real TOUGHswitch
-- [ ] Figure out how to modify the switch permanently
-- [ ] Install-script
-- [ ] Add mac address table to status output (`/usr/www/mactable_data.cgi` or `tswconf` `fdb`)
-
-
-## UniFi controller log level
-
-Edit its `data/system.properties` and add the lines
-
-```properties
-debug.device=DEBUG
-debug.mgmt=DEBUG
-debug.sdn=DEBUG
-debug.system=DEBUG
+```sh
+tar xzf dist.build.tar.gz
+cd build
+make firmware
 ```
 
-then look at `log/server.log`. Hint: `docker exec -i -t unifi bash`
+This will download the firmware from Ubiquiti. Then it will be unpacked, modified,
+and repacked. If all succeeds, this results in a firmware file that you can install directly.
+
+
+## Install
+
+The resulting firmware file `SW.v<version>.<build_number>+unifi<version>.bin` can be uploaded
+using the switch's web interface, and after pressing _Update_ and waiting a couple of minutes,
+a UniFi controller running on the same network would show the switch for adoption. The interace
+will show _UniFi Switch 8 POE-150W_ for the 8-port TOUGHswitch, and _UniFi Switch 8 POE-60W_ for
+the 5-port version.
 
 
 ## Links
