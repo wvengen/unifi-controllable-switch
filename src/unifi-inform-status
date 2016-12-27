@@ -45,6 +45,7 @@ export CFGVERSION MODEL
     p("model", "\"" ENVIRON["MODEL"] "\"")
     p("cfgversion", "\"" ENVIRON["CFGVERSION"] "\"")
     UPLINK=1 # uplink port index
+    MEM_USED=0
   }
 
   function alength(a) {
@@ -94,13 +95,16 @@ export CFGVERSION MODEL
     STATS = STATS _p("loadavg_15", $2, ",")
   }
   /^\["status","host","meminfo","total"\]/ {
-    STATS = STATS _p("mem_used", $2, ",")
+    STATS = STATS _p("mem_total", $2, ",")
+    MEM_USED = MEM_USED + $2
   }
   /^\["status","host","meminfo","free"\]/ {
-    STATS = STATS _p("mem_free", $2, ",")
+    #STATS = STATS _p("mem_free", $2, ",")
+    MEM_USED = MEM_USED - $2
   }
   /^\["status","host","meminfo","buffers"\]/ {
     STATS = STATS _p("mem_buffer", $2, ",")
+    MEM_USED = MEM_USED - $2
   }
 
 
@@ -193,6 +197,7 @@ export CFGVERSION MODEL
     p("ip", IP_ADDR)
     p("serial", SERIAL)
 
+    if (MEM_USED > 0) { STATS = STATS _p("mem_used", MEM_USED, ",") }
     print "\"sys_stats\": {" substr(STATS, 0, length(STATS)-1) "},"
 
     print "\"if_table\": [{"
