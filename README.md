@@ -8,9 +8,9 @@ however, does not integrate with the UniFi controller
 (and [it appears Ubiquiti won't do so](https://community.ubnt.com/t5/UniFi-Routing-Switching/Tough-Switch-integration-with-Unifi-4-6/td-p/1191186)).
 This project adds basic read-only support for the UniFi controller to TOUGHswitch firmware.
 
-**Important note:** this is an adaptation of the official TOUGHswitch firmware, independent of
+**Important note:** _this is an adaptation of the official TOUGHswitch firmware, independent of
 Ubiquiti. It has not been tested thoroughly, and as such it might cause issues, e.g. performance
-might suffer. Bricking is very unlikely, but not entirely impossible.
+might suffer. Bricking is very unlikely, but not entirely impossible. You may lose your warranty._
 
 ![UniFi controller with a TOUGHswitch](screenshot-unifi-controller.png)
 
@@ -64,4 +64,3 @@ the 5-port version.
 * [mcrute/ubntmfi](https://github.com/mcrute/ubntmfi) - web controller for mFi hardware
 * OpenWRT on [UniFi AP AC](https://wiki.openwrt.org/toh/ubiquiti/unifiac)
 * [TOUGHswitch@wikidevi](https://wikidevi.com/wiki/Ubiquiti_Networks_TOUGHSwitch_PoE_Pro)
-
