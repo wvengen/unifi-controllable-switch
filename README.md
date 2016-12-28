@@ -63,4 +63,5 @@ the 5-port version.
 * [sol1/icinga-ubiquiti-mfi](https://github.com/sol1/icinga-ubiquiti-mfi) - parser for mFi `mca-dump`'s json output
 * [mcrute/ubntmfi](https://github.com/mcrute/ubntmfi) - web controller for mFi hardware
 * OpenWRT on [UniFi AP AC](https://wiki.openwrt.org/toh/ubiquiti/unifiac)
+* [TOUGHswitch@wikidevi](https://wikidevi.com/wiki/Ubiquiti_Networks_TOUGHSwitch_PoE_Pro)
 
