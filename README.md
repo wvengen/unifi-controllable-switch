@@ -43,7 +43,7 @@ and repacked. If all succeeds, this results in a firmware file that you can inst
 
 The resulting firmware file `SW.v<version>.<build_number>+unifi<version>.bin` can be uploaded
 using the switch's web interface, and after pressing _Update_ and waiting a couple of minutes,
-a UniFi controller running on the same network would show the switch for adoption. The interace
+a UniFi controller running on the same network would show the switch for adoption. The interface
 will show _UniFi Switch 8 POE-150W_ for the 8-port TOUGHswitch, and _UniFi Switch 8 POE-60W_ for
 the 5-port version.
 
