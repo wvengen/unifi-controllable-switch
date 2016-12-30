@@ -1,0 +1,8 @@
+.git
+cfg
+devel
+src/build/
+src/firmware/
+# qemu images
+src/mips/*.qcow2
+src/mips/vmlinux-*
