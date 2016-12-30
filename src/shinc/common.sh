@@ -6,7 +6,11 @@
 
 if [ -e /var/etc/persistent ]; then
   DEVEL=
-  CFG_DIR=/var/etc/persistent/cfg
+  # use /tmp to avoid littering persistent config
+  #   the controller re-adopts the device on reboot when needed
+  #   and this allows forgetting the device in the controller (after reboot)
+  CFG_DIR=/tmp/unifi-cfg
+  #CFG_DIR=/var/etc/persistent/cfg
 else
   # it looks like we're running in-tree for development
   DEVEL=1
