@@ -81,6 +81,9 @@ announcement using `python2` [`devel/unifi_announce.py`](devel/unifi_announce.py
 For the inform request, also configure `inform_url` and `auth_key`, then run
 `python2` [`devel/unifi_inform.py`](devel/unifi_inform.py).
 
+If you have an existing inform packet, you can use [`devel/unifi_decode.py`](devel/unifi_decode.py)
+to decode it, giving the authkey as argument and the packet data on stdin. (Also works
+with newer packets using [snappy compression](https://github.com/google/snappy).)
 
 
 ## UniFi controller log level
