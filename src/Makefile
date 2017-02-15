@@ -23,13 +23,14 @@ all: $(TARGET)
 
 clean:
 	rm -f $(TARGET) fwsplit fwmkimage $(FW_TARGET) \
-		    dist.src.tar.gz dist.mips.tar.gz dist.build.tar.gz
+		    dist.src.tar.gz dist.mips.tar.gz dist.build-cross.tar.gz dist.build-mips.tar.gz
 	if [ -d build ]; then rm -f build/* && rmdir build; fi
 
 distclean: clean
-	rm -f mips/$(TARGET) mips/vmlinux-2.6.32-5-4kc-malta \
+	rm -f mips/$(TARGET) mips/fwsplit mips/fwmkimage mips/mksquashfs mips/unsquashfs \
+	      mips/vmlinux-2.6.32-5-4kc-malta \
         mips/$(QEMU_ROOTWORK) mips/$(QEMU_ROOTBASE) mips/$(QEMU_KERNEL) \
-				mips/$(FW_FILENAME)
+				mips/$(FW_FILENAME) mips/squashfs.tar.gz mips/lzma.tar.bz2
 	if [ -d mips ]; then rmdir mips; fi
 
 
@@ -44,8 +45,10 @@ $(TARGET): $(FILES) $(HEADERS)
 
 fwsplit: fwsplit.c fw.h
 	$(CC) -o $@ fwsplit.c -lz
+	strip -S --strip-unneeded -R .note.gnu.gold-version -R .comment -R .note -R .note.gnu.build-id $@
 fwmkimage: fwmkimage.c fw.h
 	$(CC) -o $@ fwmkimage.c -lz
+	strip -S --strip-unneeded -R .note.gnu.gold-version -R .comment -R .note -R .note.gnu.build-id $@
 
 
 ### Cross-compile for mips
@@ -78,12 +81,11 @@ mips/$(QEMU_KERNEL):
 dist.src.tar.gz: Makefile $(FILES) $(HEADERS)
 	tar -c -z -f $@ Makefile $(FILES) $(HEADERS)
 
-mips/qemu-up: dist.src.tar.gz
+mips/qemu-up:
 	@make mips/$(QEMU_ROOTWORK) mips/$(QEMU_KERNEL)
 	qemu-system-mips -M malta \
 		-kernel mips/$(QEMU_KERNEL) \
 		-hda mips/$(QEMU_ROOTWORK) \
-		-drive format=raw,file=dist.src.tar.gz \
 		-nographic -append "root=/dev/sda1 console=tty0" \
 		-net nic -net user,hostfwd=tcp:127.0.0.1:$(QEMU_SSH_PORT)-:22 >/dev/null & \
 		echo $$! >mips/qemu-up
@@ -95,14 +97,45 @@ mips/qemu-down:
 	[ -f mips/qemu-up ] && kill `cat mips/qemu-up`
 	@rm -f mips/qemu-up
 
-mips/compile-$(TARGET):
-	@$(QEMU_SSH) '[ -z `which gcc` ] && echo "deb http://archive.debian.org/debian squeeze main" >/etc/apt/sources.list && apt-get update && apt-get -y install $(QEMU_PACKAGES)'
-	@$(QEMU_SSH) 'tar xzf /dev/sdb && make CC="diet gcc"'
-	@$(QEMU_SSH) cat $(TARGET) >mips/$(TARGET)
+mips/compile-$(TARGET): dist.src.tar.gz
+	@$(QEMU_SSH) '[ -z `which gcc` ] && echo "deb http://archive.debian.org/debian squeeze main" >/etc/apt/sources.list && apt-get update && apt-get -y install $(QEMU_PACKAGES)' || true
+	@zcat dist.src.tar.gz | $(QEMU_SSH) 'rm -Rf src && mkdir -p src && tar -C src -x -f -'
+	@$(QEMU_SSH) 'cd src && make CC="diet gcc" $(TARGET)'
+	@$(QEMU_SSH) tar -C src -c -f - $(TARGET) | tar -C mips -x -f -
 
 mips/$(TARGET):
 	@make mips/qemu-up mips/compile-$(TARGET) mips/qemu-down
-	@chmod a+x $@
+
+
+### mksquashfs + unsquashfs for MIPS (to repack firmware on the TOUGHswitch itself)
+
+MKSQUASH_URL = https://heanet.dl.sourceforge.net/project/squashfs/squashfs/squashfs4.3/squashfs4.3.tar.gz
+LIBLZMA_URL = https://heanet.dl.sourceforge.net/project/sevenzip/LZMA%20SDK/4.65/lzma465.tar.bz2
+
+mips/squashfs.tar.gz:
+	@mkdir -p mips
+	wget -O $@ $(MKSQUASH_URL)
+
+mips/lzma.tar.bz2:
+	@mkdir -p mips
+	wget -O $@ $(LIBLZMA_URL)
+
+mips/compile-mksquashfs: mips/squashfs.tar.gz mips/lzma.tar.bz2
+	@bzcat mips/lzma.tar.bz2 | $(QEMU_SSH) 'rm -Rf lzma && mkdir -p lzma && tar -C lzma -x -f - C/'
+	@zcat mips/squashfs.tar.gz | $(QEMU_SSH) 'rm -Rf squashfs && mkdir -p squashfs && tar -C squashfs --strip-components=2 --wildcards "squashfs*/squashfs-tools" -x -f -'
+	@$(QEMU_SSH) 'sed -i "s/max_digits = .*/max_digits = 5;/" squashfs/progressbar.c squashfs/unsquashfs.c' # avoid undefined references to `log10' and `floor' (dietlibc bug?)
+	@$(QEMU_SSH) 'sed -i "s/\(TRACE(\"create_inode: dev\)/long long unsigned int qq = i->data;\1/;s/i->data \& 0xff/qq \& 0xff/g" squashfs/unsquashfs.c' # avoid weird invalid type argument error (dietlibc + compiler bug?)
+	@$(QEMU_SSH) 'cd squashfs && CFLAGS="-DFNM_EXTMATCH=0 -include pthread.h -include pty.h" make GZIP_SUPPORT=0 LZMA_SUPPORT=1 LZMA_DIR=../lzma COMP_DEFAULT=lzma XATTR_SUPPORT=0 CC="diet gcc"'
+	@$(QEMU_SSH) 'cd squashfs && strip -S --strip-unneeded -R .note.gnu.gold-version -R .comment -R .note -R .note.gnu.build-id mksquashfs unsquashfs'
+	@$(QEMU_SSH) tar -C squashfs -c -f - mksquashfs unsquashfs | tar -C mips -x -f -
+
+mips/compile-fwsplit:
+	@tar -c -f - fwsplit.c fwmkimage.c fw.h Makefile | $(QEMU_SSH) 'rm -Rf fwsplit && mkdir -p fwsplit && tar -C fwsplit -x -f -'
+	@$(QEMU_SSH) 'cd fwsplit && make CC="diet gcc -D_GNU_SOURCE" fwsplit fwmkimage'
+	@$(QEMU_SSH) tar -C fwsplit -c -f - fwsplit fwmkimage | tar -C mips -x -f -
+
+mips/mksquashfs:
+	@make mips/qemu-up mips/compile-mksquashfs mips/compile-fwsplit mips/qemu-down
 
 
 ### Firmware with UniFi integration
@@ -167,19 +200,34 @@ $(FW_TARGET): fwsplit fwmkimage dist.mips.tar.gz mips/$(FW_FILENAME)
 	@rm -Rf firmware
 
 
-### Distribution
+### Cross build distribution
 
 DIST_BUILD_FILES = \
 	Makefile \
 	dist.mips.tar.gz \
   fwsplit.c fwmkimage.c fw.h
 
-dist.build.tar.gz: $(DIST_BUILD_FILES)
+dist.build-cross.tar.gz: $(DIST_BUILD_FILES)
 	@mkdir -p build
 	cp -p $(DIST_BUILD_FILES) build/
 	sed -i 's/^\(dist.mips.tar.gz:\).*$$/\1/' build/Makefile  # don't try to build mips binary
 	sed -i 's/^all:.*$$/all: firmware/' build/Makefile        # default target
-	cat DIST_BUILD.md | sed 's/@@FW_VERSION@@/$(FW_VERSION)/g;s/@@FW_UNIVERS@@/$(FW_UNIVERS)/g' >build/README.md
+	cat DIST_BUILD_CROSS.md | sed 's/@@FW_VERSION@@/$(FW_VERSION)/g;s/@@FW_UNIVERS@@/$(FW_UNIVERS)/g' >build/README.md
+	tar -c -z -f $@ build/
+	rm -Rf build
+
+
+### MIPS build distribution
+
+MIPS_BUILD_FILES = \
+	dist.mips.tar.gz \
+  mips/mksquashfs mips/unsquashfs \
+	mips/fwsplit mips/fwmkimage
+ 
+dist.build-mips.tar.gz: $(MIPS_BUILD_FILES)
+	@mkdir -p build
+	cp -p $(MIPS_BUILD_FILES) build/
+	cat DIST_BUILD_MIPS.md | sed 's/@@FW_VERSION@@/$(FW_VERSION)/g;s/@@FW_UNIVERS@@/$(FW_UNIVERS)/g' >build/README.md
 	tar -c -z -f $@ build/
 	rm -Rf build
 
