@@ -22,7 +22,7 @@ all: $(TARGET)
 
 
 clean:
-	rm -f $(TARGET) fwsplit fwmkimage $(FW_TARGET) \
+	rm -f $(TARGET) fwsplit fwmkimage $(FW_TARGET) dist-build.sh \
 		    dist.src.tar.gz dist.mips.tar.gz dist.build-cross.tar.gz dist.build-mips.tar.gz
 	if [ -d build ]; then rm -f build/* && rmdir build; fi
 
@@ -156,6 +156,7 @@ FW_BUILDID=29156.160523.1659
 FW_FWVERSION=SW.ar7240.$(FW_VERSION).$(FW_BUILDID)
 # unifi adaptation version (this package)
 FW_UNIVERS=1
+FW_URL=http://dl.ubnt.com/firmwares/TOUGHSwitch/$(FW_VERSION)/$(FW_FILENAME)
 
 FW_FILENAME=SW.$(FW_VERSION).$(FW_BUILDID).bin
 FW_TARGET=SW.$(FW_VERSION).$(FW_BUILDID)+unifi.$(FW_UNIVERS).bin
@@ -169,41 +170,20 @@ dist.mips.tar.gz: mips/$(TARGET) $(INSTALL_FILES)
 
 mips/$(FW_FILENAME):
 	@mkdir -p mips
-	cd mips && wget 'http://dl.ubnt.com/firmwares/TOUGHSwitch/$(FW_VERSION)/$(FW_FILENAME)'
+	cd mips && wget '$(FW_URL)'
 
-$(FW_TARGET): fwsplit fwmkimage dist.mips.tar.gz mips/$(FW_FILENAME)
-	# unpack firmware
-	@mkdir -p firmware
-	cd firmware && ../fwsplit '../mips/$(FW_FILENAME)'
-	unsquashfs -d firmware/root 'firmware/$(FW_FWVERSION).rootfs'
-	rm 'firmware/$(FW_FWVERSION).rootfs'
-	# add tools to firmware
-	mkdir -p firmware/root/usr/unifi
-	tar -x -z -C firmware/root/usr/unifi -f dist.mips.tar.gz
-	# integrate with system
-	printf '#!/bin/sh\n/usr/unifi/syswrapper.sh $$@\n' >firmware/root/bin/syswrapper.sh
-	chmod a+x firmware/root/bin/syswrapper.sh
-	echo '/usr/unifi/unifi-daemon &' >>firmware/root/usr/etc/rc.d/rc.sysinit
-	# add notice to web ui
-	for t in templates/tab_status.tmpl templates/tab_device.tmpl; do \
-		cat firmware/root/usr/www/$$t | awk ' \
-				{print $$0} \
-				/echo (\$$fwversion|fw_get_version)/ { print "<span>+ <a href=\"$(FW_UNIURL)\" target=\"_blank\">UniFi v$(FW_UNIVERS)</a></span>" }' \
-				>firmware/template.tmp && \
-			mv firmware/template.tmp firmware/root/usr/www/$$t; \
-	done
-	# remove inconvenient max password length restriction
-	sed -i 's/ *maxlength="8"//g' firmware/root/usr/www/login.cgi firmware/root/usr/www/templates/tab_device.tmpl
-	# pack firmware and cleanup
-	mksquashfs firmware/root firmware/$(FW_FWVERSION).rootfs -all-root -noappend -comp lzma
-	cd firmware && ../fwmkimage -v '$(FW_FWVERSION)+unifi.$(FW_UNIVERS)' -o '../$(FW_TARGET)' -i '$(FW_FWVERSION).txt'
-	@rm -Rf firmware
+dist-build.sh: dist-build.sh.in
+	sed 's|@@FW_FILENAME@@|$(FW_FILENAME)|;s|@@FW_URL@@|$(FW_URL)|;s|@@FW_FWVERSION@@|$(FW_FWVERSION)|;s|@@FW_UNIVERS@@|$(FW_UNIVERS)|;s|@@FW_UNIURL@@|$(FW_UNIURL)|;s|@@FW_TARGET@@|$(FW_TARGET)|;' <dist-build.sh.in >dist-build.sh
+	chmod a+x dist-build.sh
+
+$(FW_TARGET): dist-build.sh fwsplit fwmkimage dist.mips.tar.gz mips/$(FW_FILENAME)
+	FW_PATH=mips/$(FW_FILENAME) ./dist-build.sh
 
 
 ### Cross build distribution
 
 DIST_BUILD_FILES = \
-	Makefile \
+	Makefile dist-build.sh.in \
 	dist.mips.tar.gz \
   fwsplit.c fwmkimage.c fw.h
 
@@ -220,7 +200,7 @@ dist.build-cross.tar.gz: $(DIST_BUILD_FILES)
 ### MIPS build distribution
 
 MIPS_BUILD_FILES = \
-	dist.mips.tar.gz \
+	dist.mips.tar.gz dist-build.sh \
   mips/mksquashfs mips/unsquashfs \
 	mips/fwsplit mips/fwmkimage
  

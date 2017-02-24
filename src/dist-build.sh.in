@@ -1,0 +1,57 @@
+#!/bin/sh
+#
+# Download and patch TOUGHswitch firmware to add rudimentary UniFi support
+#
+# Pending issues when running on TOUGHswitch (so don't do that yet):
+# - unsquashfs gives segmentation fault :(
+# - space is limited, may need to mount tmpfs
+#
+
+cd `dirname "$0"`
+PATH=`pwd`:$PATH
+
+FW_URL="@@FW_URL@@"
+FW_FWVERSION="@@FW_FWVERSION@@"
+FW_UNIVERS="@@FW_UNIVERS@@"
+FW_UNIURL="@@FW_UNIURL@@"
+FW_TARGET="@@FW_TARGET@@"
+# firmware path (relative!) can be overridden if already downloaded
+[ "$FW_PATH" ] || FW_PATH="@@FW_FILENAME@@"
+
+# download original firmware if needed
+if [ ! -r "${FW_PATH}" ]; then
+  wget -O "${FW_PATH}" "${FW_URL}"
+fi
+
+# unpack firmware
+mkdir -p firmware
+(cd firmware && fwsplit "../${FW_PATH}")
+unsquashfs -d firmware/root "firmware/${FW_FWVERSION}.rootfs"
+rm "firmware/${FW_FWVERSION}.rootfs"
+
+# add tools to firmware
+mkdir -p firmware/root/usr/unifi
+tar -x -z -C firmware/root/usr/unifi -f dist.mips.tar.gz
+
+# integrate with system
+printf '#!/bin/sh\n/usr/unifi/syswrapper.sh $@\n' >firmware/root/bin/syswrapper.sh
+chmod a+x firmware/root/bin/syswrapper.sh
+echo '/usr/unifi/unifi-daemon &' >>firmware/root/usr/etc/rc.d/rc.sysinit
+
+# add notice to web ui
+for t in templates/tab_status.tmpl templates/tab_device.tmpl; do
+  cat firmware/root/usr/www/$t | awk '
+      {print $0}
+      /echo (\$fwversion|fw_get_version)/ { print "<span>+ <a href=\"'"${FW_UNIURL}"'\" target=\"_blank\">UniFi v'"${FW_UNIVERS}"'</a></span>" }
+      ' >firmware/template.tmp &&
+    mv firmware/template.tmp firmware/root/usr/www/$t
+done
+
+# remove inconvenient max password length restriction
+sed -i 's/ *maxlength="8"//g' firmware/root/usr/www/login.cgi firmware/root/usr/www/templates/tab_device.tmpl
+
+# pack firmware and cleanup
+mksquashfs firmware/root firmware/${FW_FWVERSION}.rootfs -all-root -noappend -comp lzma
+(cd firmware && fwmkimage -v "${FW_FWVERSION}+unifi.${FW_UNIVERS}" -o "../${FW_TARGET}" -i "${FW_FWVERSION}.txt")
+rm -Rf firmware
+
