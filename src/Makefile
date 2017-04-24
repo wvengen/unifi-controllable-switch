@@ -118,8 +118,8 @@ INSTALL_FILES = \
 	shinc/JSON.sh
 
 # latest version from https://www.ubnt.com/download/accessories/toughswitch
-FW_VERSION=v1.3.3
-FW_BUILDID=29156.160523.1659
+FW_VERSION=v1.3.5
+FW_BUILDID=30594.170329.1746
 FW_FWVERSION=SW.ar7240.$(FW_VERSION).$(FW_BUILDID)
 # unifi adaptation version (this package)
 FW_UNIVERS=1
